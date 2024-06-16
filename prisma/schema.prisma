@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id           String   @id @default(uuid())
+  username     String   @unique()
+  email        String   @unique()
+  password     String
+  refreshToken String? // is need extract to table for multiple device login?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Tenants {
+  id          String     @id @default(uuid())
+  name        String     @unique() @db.VarChar(30)
+  description String?    @db.Text
+  bucketId    String?    @db.VarChar(16)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  Nodes       Nodes[]
+  Gateways    Gateways[]
+}
+
+model Nodes {
+  id           String   @id @default(uuid())
+  serialNumber String   @unique() @db.VarChar(30)
+  alias        String   @unique() @db.VarChar(30)
+  description  String?  @db.Text
+  type         String   @db.VarChar(30)
+  group        Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant   Tenants? @relation(fields: [tenantId], references: [id])
+  tenantId String?
+}
+
+model Gateways {
+  id           String   @id @default(uuid())
+  serialNumber String   @unique() @db.VarChar(30)
+  alias        String   @unique() @db.VarChar(30)
+  description  String?  @db.Text
+  type         String   @db.VarChar(30)
+  group        Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant      Tenants?     @relation(fields: [tenantId], references: [id])
+  tenantId    String?
+  MqttAccount MqttAccount?
+}
+
+model Types {
+  id          String   @id @default(uuid())
+  name        String   @unique() @db.VarChar(30)
+  groups      String[]
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RequestLogs {
+  id        Int      @id @default(autoincrement())
+  user      String   @db.VarChar(30)
+  auditLog  String   @db.VarChar(30)
+  ipAddress String?  @db.VarChar(30)
+  status    String?  @db.VarChar(30)
+  body      String?  @db.Text
+  params    String?  @db.Text
+  response  String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index(fields: [createdAt(sort: Desc)])
+  @@index(fields: [status])
+  @@index(fields: [user])
+  @@index(fields: [status, user, createdAt])
+}
+
+model MqttAccount {
+  id                  Int     @id @default(autoincrement())
+  gatewaySerialNumber String? @unique
+  username            String  @unique
+  password            String
+  isSuperUser         Boolean
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gateway Gateways? @relation(fields: [gatewaySerialNumber], references: [serialNumber])
+}
+
+model ApiKeys {
+  id          String  @id @default(uuid())
+  username    String  @unique @db.VarChar(30)
+  expiresAt   String  @db.VarChar(30)
+  isEnable    Boolean
+  apiKey      String
+  secretKey   String
+  description String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ACTION {
+  publish
+  subscribe
+  all
+}
+
+enum PERMISSION {
+  allow
+  deny
+}
+
+model MqttAcl {
+  id         Int        @id @default(autoincrement())
+  ipaddress  String     @default("")
+  username   String     @default("") @db.VarChar(255)
+  clientid   String     @default("") @db.VarChar(255)
+  action     ACTION
+  permission PERMISSION
+  topic      String     @db.VarChar(255)
+  qos        Int?
+  retain     Int?
+
+  @@index([username], name: "mqtt_acl_username_idx")
+}

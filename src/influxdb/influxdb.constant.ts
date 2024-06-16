@@ -1,0 +1,2 @@
+export const INFLUXDB_CLIENT = Symbol('INFLUXDB_CLIENT');
+export const INFLUXDB_CLIENT_APIS = Symbol('INFLUXDB_CLIENT_APIS');
