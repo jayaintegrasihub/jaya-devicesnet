@@ -5,13 +5,16 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   UseGuards,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
+import { GatewaysEntity } from 'src/gateways/entity/gateways.entity';
 import { GatewaysService } from 'src/gateways/gateways.service';
+import { NodesEntity } from 'src/nodes/entity/node.entity';
 import { NodesService } from 'src/nodes/nodes.service';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
 
@@ -29,14 +32,24 @@ export class ServiceConnectorController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ApiKeysGuard)
   async findAll(@Param('id') id: string) {
-    let gateway: any = null;
-    let node: any = null;
+    let gateway: GatewaysEntity | null = null;
+    let node: NodesEntity | null = null;
+
     try {
-      [gateway, node] = await Promise.all([
-        this.gatewaysService.findOneWithSerialNumber({ serialNumber: id }),
-        this.nodesService.findOneWithSerialNumber({ serialNumber: id }),
-      ]);
+      gateway = await this.gatewaysService.findOneWithSerialNumber({
+        serialNumber: id,
+      });
     } catch (error) {}
+
+    try {
+      node = await this.nodesService.findOneWithSerialNumber({
+        serialNumber: id,
+      });
+    } catch (error) {}
+
+    if (!gateway && !node) {
+      throw new NotFoundException('Device not found');
+    }
 
     return {
       status: 'success',

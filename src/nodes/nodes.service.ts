@@ -38,7 +38,7 @@ export class NodesService {
 
   async create(data: Prisma.NodesCreateInput) {
     const node = await this.prisma.nodes.create({ data });
-    await this.cacheManager.del(node.id);
+    await this.cacheManager.del(`node/${node.serialNumber!}`);
     return node;
   }
 
@@ -48,8 +48,8 @@ export class NodesService {
   }) {
     const node = await this.prisma.nodes.update(params);
     // this redis delete for logic jaya-transport-service
-    await this.redis.del(`device/${node.id}`);
-    await this.cacheManager.del(node.id);
+    await this.redis.del(`device/${node.serialNumber}`);
+    await this.cacheManager.del(`node/${node.serialNumber!}`);
     return node;
   }
 
@@ -59,7 +59,9 @@ export class NodesService {
 
   // Add cache to increase data retrieval performance
   async findOneWithSerialNumber(where: Prisma.NodesWhereUniqueInput) {
-    const cache = (await this.cacheManager.get(where.serialNumber!)) as string;
+    const cache = (await this.cacheManager.get(
+      `node/${where.serialNumber!}`,
+    )) as string;
     if (cache) {
       const node = JSON.parse(cache);
       return new NodesEntity(node);
@@ -70,7 +72,11 @@ export class NodesService {
           tenant: { select: { id: true, name: true } },
         },
       });
-      await this.cacheManager.set(node.serialNumber, JSON.stringify(node), 0);
+      await this.cacheManager.set(
+        `node/${node.serialNumber}`,
+        JSON.stringify(node),
+        0,
+      );
       return new NodesEntity(node);
     }
   }
