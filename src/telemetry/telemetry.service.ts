@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { NodesService } from 'src/nodes/nodes.service';
 import { INFLUXDB_CLIENT } from 'src/influxdb/influxdb.constant';
 import { TenantsService } from 'src/tenants/tenants.service';
+import { GatewaysService } from 'src/gateways/gateways.service';
 
 Injectable();
 export class TelemetryService {
@@ -14,6 +15,7 @@ export class TelemetryService {
     private configService: ConfigService,
     private nodesService: NodesService,
     private tenantsService: TenantsService,
+    private gatewaysService: GatewaysService,
   ) {
     const org = this.configService.get('INFLUXDB_ORG_ID');
     const queryApi = this.influx.getQueryApi(org);
@@ -220,40 +222,75 @@ export class TelemetryService {
     return refactoredData;
   }
 
-  async statusDevice(tenantName: string) {
+  async statusDevices(tenantName: string) {
     const tenant = await this.tenantsService.findOne({
       name: tenantName,
     });
-    const devices = await this.nodesService.findAll({
+    const nodes = await this.nodesService.findAll({
       where: {
         tenantId: tenant.id,
       },
     });
-    const filterDevices = devices
+
+    const filterNodes = nodes
       .map((device) => `r["device"] == "${device.serialNumber}"`)
       .join(' or ');
-    const fluxQuery = `
+    const nodefluxQuery = `
     from(bucket: "${tenant.name}")
     |> range(start: 0)
-    |> filter(fn: (r) => r["_measurement"] == "devices-heart-beat")
-    |> filter(fn: (r) => ${filterDevices})
+    |> filter(fn: (r) => r["_measurement"] == "nodehealth")
+    |> filter(fn: (r) => ${filterNodes})
     |> last()
     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
     |> group(columns: ["device"])
     |> last(column: "device")
     |> drop(columns: ["_start", "_stop"])`;
 
-    const result = await this.queryApi.collectRows(fluxQuery);
-    const timeNow = new Date().getTime();
-    const dataOnline = result.map(({ result: _x, table: _y, ...data }) => {
-      const point = data;
-      const diff = (timeNow - new Date(point._time as string).getTime()) / 1000;
-      point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
-      point['alias'] =
-        devices.find((device) => device.serialNumber === point.device)?.alias ||
-        point.device;
-      return point;
+    const nodeHealthData = await this.queryApi.collectRows(nodefluxQuery);
+
+    const gateways = await this.gatewaysService.findAll({
+      where: {
+        tenantId: tenant.id,
+      },
     });
-    return dataOnline;
+
+    const filterGateways = gateways
+      .map((device) => `r["device"] == "${device.serialNumber}"`)
+      .join(' or ');
+    const gatewayfluxQuery = `
+    from(bucket: "${tenant.name}")
+    |> range(start: 0)
+    |> filter(fn: (r) => r["_measurement"] == "gatewayhealth")
+    |> filter(fn: (r) => ${filterGateways})
+    |> last()
+    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+    |> group(columns: ["device"])
+    |> last(column: "device")
+    |> drop(columns: ["_start", "_stop"])`;
+
+    const gatewayhealthData = await this.queryApi.collectRows(gatewayfluxQuery);
+
+    const timeNow = new Date().getTime();
+
+    const calculateDataOnline = (
+      data: Array<any>,
+      devices: { alias: string; serialNumber: string }[],
+    ) => {
+      return data.map(({ result: _x, table: _y, ...data }) => {
+        const point = data;
+        const diff =
+          (timeNow - new Date(point._time as string).getTime()) / 1000;
+        point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
+        point['alias'] =
+          devices.find((device) => device.serialNumber === point.device)
+            ?.alias || point.device;
+        return point;
+      });
+    };
+    return {
+      nodes: calculateDataOnline(nodeHealthData, nodes),
+      gateways: calculateDataOnline(gatewayhealthData, gateways),
+      timeNow,
+    };
   }
 }

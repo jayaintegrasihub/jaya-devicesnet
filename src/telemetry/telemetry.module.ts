@@ -6,6 +6,7 @@ import { TelemetryService } from './telemetry.service';
 import { NodesModule } from 'src/nodes/nodes.module';
 import { ApiKeysModule } from 'src/api-keys/api-keys.module';
 import { TenantsModule } from 'src/tenants/tenants.module';
+import { GatewaysModule } from 'src/gateways/gateways.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TenantsModule } from 'src/tenants/tenants.module';
     NodesModule,
     ApiKeysModule,
     TenantsModule,
+    GatewaysModule,
   ],
   controllers: [TelemetryController],
   providers: [TelemetryService],

@@ -66,10 +66,10 @@ export class TelemetryController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ApiKeysGuard)
   async statusDevice(@Param('tenant') tenant: string) {
-    const statusDevice = await this.telemetryService.statusDevice(tenant);
+    const statusDevices = await this.telemetryService.statusDevices(tenant);
     return {
       status: 'success',
-      data: { statusDevice },
+      data: { statusDevices },
     };
   }
 
@@ -78,10 +78,10 @@ export class TelemetryController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
   async accessTokenStatusDevice(@Param('tenant') tenant: string) {
-    const statusDevice = await this.telemetryService.statusDevice(tenant);
+    const statusDevices = await this.telemetryService.statusDevices(tenant);
     return {
       status: 'success',
-      data: { statusDevice },
+      data: { statusDevices },
     };
   }
 }
