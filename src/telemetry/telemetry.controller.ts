@@ -46,27 +46,18 @@ export class TelemetryController {
     };
   }
 
-  @Get('/report/:device')
-  @RequestLogs('getReportTelemetry')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(ApiKeysGuard)
-  async volumeUsage(@Query() query: any, @Param('device') device: string) {
-    const [volumeUsage, tdsReport] = await Promise.all([
-      this.telemetryService.volumeUsage(query, device),
-      this.telemetryService.tdsReport(query, device),
-    ]);
-    return {
-      status: 'success',
-      data: { volumeUsage, tdsReport },
-    };
-  }
-
   @Get('/status-device/:tenant')
   @RequestLogs('getStatusDeviceTelemetry')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ApiKeysGuard)
-  async statusDevice(@Param('tenant') tenant: string) {
-    const statusDevices = await this.telemetryService.statusDevices(tenant);
+  async statusDevice(
+    @Param('tenant') tenant: string,
+    @Query('type') type: string,
+  ) {
+    const statusDevices = await this.telemetryService.statusDevices(
+      tenant,
+      type,
+    );
     return {
       status: 'success',
       data: { statusDevices },
@@ -77,8 +68,14 @@ export class TelemetryController {
   @RequestLogs('getStatusDeviceTelemetry')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
-  async accessTokenStatusDevice(@Param('tenant') tenant: string) {
-    const statusDevices = await this.telemetryService.statusDevices(tenant);
+  async accessTokenStatusDevice(
+    @Param('tenant') tenant: string,
+    @Query('type') type: string,
+  ) {
+    const statusDevices = await this.telemetryService.statusDevices(
+      tenant,
+      type,
+    );
     return {
       status: 'success',
       data: { statusDevices },

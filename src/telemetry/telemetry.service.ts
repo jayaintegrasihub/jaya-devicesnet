@@ -149,43 +149,6 @@ export class TelemetryService {
     return obj;
   }
 
-  async volumeUsage(query: any, deviceNumber: string) {
-    const device = await this.nodesService.findOneWithSerialNumber({
-      serialNumber: deviceNumber,
-    });
-
-    const { serialNumber, tenant, type } = device;
-    const {
-      startTime,
-      endTime,
-    }: { fields: string; startTime: string; endTime: string } = query;
-
-    const fluxQuery = `
-    data = from(bucket: "${tenant?.name}")
-    |> range(start: ${startTime}, stop: ${endTime})
-    |> filter(fn: (r) => r["_measurement"] == "${type}")
-    |> filter(fn: (r) => r["device"] == "${serialNumber}")
-    |> filter(fn: (r) => r["_field"] == "volume")
-    |> drop(columns: ["_start", "_stop"])
-    
-    first = data |> first()
-    last = data |> last()
-
-    union(tables: [first, last])
-    |> sort(columns: ["_time"])
-    |> difference(nonNegative: false, columns: ["_value"])
-    |> drop(columns: ["_time"])`;
-
-    const result = await this.queryApi.collectRows(fluxQuery);
-    const transform = result.map(
-      ({ result: _x, table: _y, _measurement: _z, ...data }) => {
-        data._value = data._value * 0.01 < 0 ? 0 : data._value * 0.01;
-        return data;
-      },
-    );
-    return transform[0] || {};
-  }
-
   async tdsReport(query: any, deviceNumber: string) {
     const device = await this.nodesService.findOneWithSerialNumber({
       serialNumber: deviceNumber,
@@ -222,16 +185,23 @@ export class TelemetryService {
     return refactoredData;
   }
 
-  async statusDevices(tenantName: string) {
+  async statusDevices(tenantName: string, type?: string) {
     const tenant = await this.tenantsService.findOne({
       name: tenantName,
     });
     const nodes = await this.nodesService.findAll({
       where: {
         tenantId: tenant.id,
+        type,
       },
     });
-
+    const gateways = await this.gatewaysService.findAll({
+      where: {
+        tenantId: tenant.id,
+        type,
+      },
+    });
+    console.log(nodes);
     const filterNodes = nodes
       .map((device) => `r["device"] == "${device.serialNumber}"`)
       .join(' or ');
@@ -246,14 +216,6 @@ export class TelemetryService {
     |> sort(columns: ["_time"], desc: false) 
     |> last(column: "device")
     |> drop(columns: ["_start", "_stop"])`;
-
-    const nodeHealthData = await this.queryApi.collectRows(nodefluxQuery);
-
-    const gateways = await this.gatewaysService.findAll({
-      where: {
-        tenantId: tenant.id,
-      },
-    });
 
     const filterGateways = gateways
       .map((device) => `r["device"] == "${device.serialNumber}"`)
@@ -270,7 +232,12 @@ export class TelemetryService {
     |> last(column: "device")
     |> drop(columns: ["_start", "_stop"])`;
 
-    const gatewayhealthData = await this.queryApi.collectRows(gatewayfluxQuery);
+    let nodeHealthData: never[] = [];
+    let gatewayhealthData: never[] = [];
+    try {
+      nodeHealthData = await this.queryApi.collectRows(nodefluxQuery);
+      gatewayhealthData = await this.queryApi.collectRows(gatewayfluxQuery);
+    } catch {}
 
     const timeNow = new Date().getTime();
 
