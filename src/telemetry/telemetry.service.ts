@@ -201,7 +201,7 @@ export class TelemetryService {
         type,
       },
     });
-    console.log(nodes);
+
     const filterNodes = nodes
       .map((device) => `r["device"] == "${device.serialNumber}"`)
       .join(' or ');
