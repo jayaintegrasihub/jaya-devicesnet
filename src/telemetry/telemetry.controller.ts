@@ -81,4 +81,22 @@ export class TelemetryController {
       data: { statusDevices },
     };
   }
+
+  @Get('/runtime/:tenant')
+  @RequestLogs('getRuntimeTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiKeysGuard)
+  async runtime(@Param('tenant') tenant: string, @Query() query: any) {
+    const { startTime, endTime, type } = query;
+    const runtime = await this.telemetryService.runtime(
+      startTime,
+      endTime,
+      tenant,
+      type,
+    );
+    return {
+      status: 'success',
+      data: { runtime },
+    };
+  }
 }

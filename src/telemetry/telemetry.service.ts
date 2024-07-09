@@ -149,42 +149,6 @@ export class TelemetryService {
     return obj;
   }
 
-  async tdsReport(query: any, deviceNumber: string) {
-    const device = await this.nodesService.findOneWithSerialNumber({
-      serialNumber: deviceNumber,
-    });
-
-    const { serialNumber, tenant, type } = device;
-    const {
-      startTime,
-      endTime,
-    }: { fields: string; startTime: string; endTime: string } = query;
-
-    const fluxQuery = `
-    from(bucket: "${tenant?.name}")
-    |> range(start: ${startTime}, stop: ${endTime})
-    |> filter(fn: (r) => r["_measurement"] == "${type}")
-    |> filter(fn: (r) => r["device"] == "${serialNumber}")
-    |> filter(fn: (r) => r["_field"] == "salinity" or r["_field"] == "tds" or r["_field"] == "temperature" or r["_field"] == "conductivity")
-    |> max()
-    |> drop(columns: ["_start", "_stop"])`;
-
-    const result = await this.queryApi.collectRows(fluxQuery);
-    const refactoredData = result.reduce(
-      (acc: any, { result: _x, table: _y, _measurement: _z, ...data }) => {
-        const key = data._field;
-        if (!acc[key]) {
-          acc[key] = [];
-        }
-        if (key !== 'salinity') data._value *= 0.1;
-        acc[key] = data;
-        return acc;
-      },
-      {},
-    );
-    return refactoredData;
-  }
-
   async statusDevices(tenantName: string, type?: string) {
     const tenant = await this.tenantsService.findOne({
       name: tenantName,
@@ -261,5 +225,52 @@ export class TelemetryService {
       gateways: calculateDataOnline(gatewayhealthData, gateways),
       timeNow,
     };
+  }
+
+  async runtime(
+    startTime: string,
+    endTime: string,
+    tenantName: string,
+    type: string,
+  ) {
+    const tenant = await this.tenantsService.findOne({
+      name: tenantName,
+    });
+    const nodes = await this.nodesService.findAll({
+      where: {
+        tenantId: tenant.id,
+        type,
+      },
+    });
+
+    const filterNodes = nodes
+      .map((device) => `r["device"] == "${device.serialNumber}"`)
+      .join(' or ');
+    const fluxQuery = `
+    import "contrib/tomhollingworth/events"
+    import "experimental/array"
+    import "math"
+
+    from(bucket: "${tenantName}")
+      |> range(start: ${startTime}, stop: ${endTime})
+      |> filter(fn: (r) => r["_measurement"] == "${type}")
+      |> filter(fn: (r) => ${filterNodes})
+      |> filter(fn: (r) => r["_field"] == "RS")
+      |> events.duration(unit: 1s)
+      |> filter(fn: (r) => r["_value"] == 1)
+      |> sum(column: "duration")
+      |> map(fn: (r) => ({  device: r["device"], _value: math.round(x: float(v:r["duration"]) / 60.00) }))`;
+
+    const runtimeData = await this.queryApi.collectRows(fluxQuery);
+    return nodes.map((node) => {
+      const runtime: any = runtimeData.find(
+        (data: any) => data.device === node.serialNumber,
+      );
+      return {
+        _value: runtime === undefined ? 0 : runtime._value,
+        alias: node.alias,
+        serialNumber: node.serialNumber,
+      };
+    });
   }
 }
