@@ -25,7 +25,6 @@ export class GatewaysService {
       ...params,
       include: {
         tenant: { select: { id: true, name: true } },
-        MqttAccount: { select: { username: true, password: true } },
       },
     });
   }
