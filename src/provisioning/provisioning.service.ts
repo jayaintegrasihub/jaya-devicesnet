@@ -1,9 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { MqttAccountService } from 'src/mqtt-account/mqtt-account.service';
+import { MqttAclService } from 'src/mqtt-acl/mqtt-acl.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class ProvisioningService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mqttAccountService: MqttAccountService,
+    private mqttAclService: MqttAclService,
+  ) {}
 
   async provision(serialNumber: string) {
     const [gateway, node] = await Promise.all([
@@ -22,20 +28,18 @@ export class ProvisioningService {
       throw new NotFoundException('gateway or node not found');
 
     let mqttUser: any;
-    mqttUser = await this.prisma.mqttAccount.findFirst({
-      where: {
-        gatewaySerialNumber: serialNumber,
-      },
+    mqttUser = await this.mqttAccountService.findOne({
+      serialNumber,
     });
-
     if (mqttUser === null) {
-      mqttUser = await this.prisma.mqttAccount.create({
-        data: {
-          isSuperUser: false,
-          username: serialNumber,
-          password: this.uniqueStringSecure(),
-          gatewaySerialNumber: serialNumber,
-        },
+      mqttUser = await this.mqttAccountService.create(serialNumber);
+      await this.mqttAclService.create({
+        action: 'publish',
+        permission: 'allow',
+        username: serialNumber,
+        topic: 'JI/v2/#',
+        clientid: serialNumber,
+        serialNumber,
       });
     }
 
@@ -45,11 +49,5 @@ export class ProvisioningService {
       password,
       status: 'success',
     };
-  }
-
-  private uniqueStringSecure() {
-    const array = new Uint32Array(1);
-    crypto.getRandomValues(array);
-    return array[0].toString(36);
   }
 }

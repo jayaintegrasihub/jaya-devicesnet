@@ -16,6 +16,8 @@ import { ProvisioningModule } from './provisioning/provisioning.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { ServiceConnectorModule } from './service-connector/service-connector.module';
+import { MqttAccountModule } from './mqtt-account/mqtt-account.module';
+import { MqttAclModule } from './mqtt-acl/mqtt-acl.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { ServiceConnectorModule } from './service-connector/service-connector.mo
     ApiKeysModule,
     TelemetryModule,
     ServiceConnectorModule,
+    MqttAccountModule,
+    MqttAclModule,
   ],
   controllers: [AppController],
   providers: [
