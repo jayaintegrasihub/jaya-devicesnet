@@ -55,9 +55,8 @@ model Gateways {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant      Tenants?     @relation(fields: [tenantId], references: [id])
-  tenantId    String?
-  MqttAccount MqttAccount?
+  tenant   Tenants? @relation(fields: [tenantId], references: [id])
+  tenantId String?
 }
 
 model Types {
@@ -87,16 +86,14 @@ model RequestLogs {
 }
 
 model MqttAccount {
-  id                  Int     @id @default(autoincrement())
-  gatewaySerialNumber String? @unique
-  username            String  @unique
-  password            String
-  isSuperUser         Boolean
+  id           Int     @id @default(autoincrement())
+  serialNumber String @unique
+  username     String  @unique
+  password     String
+  isSuperUser  Boolean
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  gateway Gateways? @relation(fields: [gatewaySerialNumber], references: [serialNumber])
 }
 
 model ApiKeys {
@@ -124,15 +121,16 @@ enum PERMISSION {
 }
 
 model MqttAcl {
-  id         Int        @id @default(autoincrement())
-  ipaddress  String     @default("")
-  username   String     @default("") @db.VarChar(255)
-  clientid   String     @default("") @db.VarChar(255)
-  action     ACTION
-  permission PERMISSION
-  topic      String     @db.VarChar(255)
-  qos        Int?
-  retain     Int?
+  id           Int        @id @default(autoincrement())
+  ipaddress    String     @default("")
+  username     String     @default("") @db.VarChar(255)
+  clientid     String     @default("") @db.VarChar(255)
+  action       ACTION
+  permission   PERMISSION
+  topic        String     @db.VarChar(255)
+  qos          Int?
+  retain       Int?
+  serialNumber String
 
   @@index([username], name: "mqtt_acl_username_idx")
 }
