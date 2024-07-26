@@ -1,5 +1,5 @@
 import { InfluxDB, QueryApi } from '@influxdata/influxdb-client';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NodesService } from 'src/nodes/nodes.service';
 import { INFLUXDB_CLIENT } from 'src/influxdb/influxdb.constant';
@@ -159,16 +159,27 @@ export class TelemetryService {
     const nodes = await this.nodesService.findAll({
       where: {
         tenantId: tenant.id,
-        type,
+        AND: {
+          type,
+        },
       },
     });
     const gateways = await this.gatewaysService.findAll({
       where: {
         tenantId: tenant.id,
-        type,
+        AND: {
+          type,
+        },
       },
     });
     const devices = nodes.concat(gateways);
+    if (devices.length === 0)
+      return {
+        nodes: [],
+        gateways: [],
+        timeNow: new Date().getTime(),
+      };
+
     const filterDevices = devices
       .map((device) => `r["device"] == "${device.serialNumber}"`)
       .join(' or ');
@@ -183,7 +194,7 @@ export class TelemetryService {
     |> sort(columns: ["_time"], desc: false) 
     |> last(column: "device")
     |> drop(columns: ["_start", "_stop"])`;
-
+    console.log(devicefluxQuery);
     const deviceHealthData = await this.queryApi.collectRows(devicefluxQuery);
 
     const timeNow = new Date().getTime();
