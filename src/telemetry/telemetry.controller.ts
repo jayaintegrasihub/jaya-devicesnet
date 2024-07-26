@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Query,
+  Sse,
   UseGuards,
   UseInterceptors,
   UsePipes,
@@ -15,6 +16,7 @@ import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
 import { TelemetryService } from './telemetry.service';
 import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
+import { from, interval, map, Observable, startWith, switchMap } from 'rxjs';
 
 @Controller('telemetry')
 @UsePipes(ZodValidationPipe)
@@ -113,5 +115,28 @@ export class TelemetryController {
       status: 'success',
       data: telemetry,
     };
+  }
+
+  @Sse('/access-token/status-device/sse/:tenant')
+  @RequestLogs('getStatusDeviceTelemetrySSE')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  sse(
+    @Param('tenant') tenant: string,
+    @Query('type') type: string,
+  ): Observable<MessageEvent> {
+    return interval(10000).pipe(
+      startWith(0),
+      switchMap(() => from(this.telemetryService.statusDevices(tenant, type))),
+      map(
+        (statusDevices) =>
+          ({
+            data: {
+              status: 'success',
+              data: { statusDevices },
+            },
+          }) as MessageEvent,
+      ),
+    );
   }
 }
