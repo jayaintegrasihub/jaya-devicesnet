@@ -159,18 +159,27 @@ export class TelemetryService {
     const nodes = await this.nodesService.findAll({
       where: {
         tenantId: tenant.id,
-        type,
+        AND: {
+          type,
+        },
       },
     });
     const gateways = await this.gatewaysService.findAll({
       where: {
         tenantId: tenant.id,
-        type,
+        AND: {
+          type,
+        },
       },
     });
     const devices = nodes.concat(gateways);
     if (devices.length === 0)
-      throw new NotFoundException('gateway or node not found');
+      return {
+        nodes: [],
+        gateways: [],
+        timeNow: new Date().getTime(),
+      };
+
     const filterDevices = devices
       .map((device) => `r["device"] == "${device.serialNumber}"`)
       .join(' or ');
@@ -185,7 +194,7 @@ export class TelemetryService {
     |> sort(columns: ["_time"], desc: false) 
     |> last(column: "device")
     |> drop(columns: ["_start", "_stop"])`;
-
+    console.log(devicefluxQuery);
     const deviceHealthData = await this.queryApi.collectRows(devicefluxQuery);
 
     const timeNow = new Date().getTime();
