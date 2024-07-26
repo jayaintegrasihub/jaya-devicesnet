@@ -28,10 +28,13 @@ export class TelemetryService {
 
     const { serialNumber, tenant, type } = device;
     const { fields, ...tags }: { fields: string } = query;
-    const filterFields = fields
-      .split(',')
-      .map((x) => `r["_field"] == "${x}"`)
-      .join(' or ');
+    const filterFields =
+      fields !== undefined
+        ? fields
+            .split(',')
+            .map((x) => `r["_field"] == "${x}"`)
+            .join(' or ')
+        : '';
 
     const filterTags: Array<string> = [];
     for (const key in tags) {
@@ -44,6 +47,8 @@ export class TelemetryService {
       filterTags.length !== 0
         ? `|> filter(fn: (r) => ${filterTags.join(' or ')})`
         : '';
+    const filterFieldsFlux =
+      filterFields === '' ? '' : `|> filter(fn: (r) => ${filterFields})`;
 
     const fluxQuery = `
     from(bucket: "${tenant?.name}")
@@ -51,22 +56,20 @@ export class TelemetryService {
     |> filter(fn: (r) => r["_measurement"] == "${type}")
     ${filterTagsFlux}
     |> filter(fn: (r) => r["device"] == "${serialNumber}")
-    |> filter(fn: (r) => ${filterFields})
+    ${filterFieldsFlux}
     |> last()
     |> drop(columns: ["_start", "_stop"])`;
 
     const resultQuery = await this.queryApi.collectRows(fluxQuery);
     const obj = {};
-    fields.split(',').forEach((data) => {
-      const dataInflux =
-        (resultQuery.find((x: any) => x._field === data) as any) || null;
-      obj[data] = dataInflux;
+    resultQuery.forEach((data: any) => {
+      obj[data._field] = data;
     });
 
     const statusFlux = `
     from(bucket: "${tenant?.name}")
     |> range(start: 0)
-    |> filter(fn: (r) => r["_measurement"] == "devices-heart-beat")
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
     |> filter(fn: (r) => r["device"] == "${serialNumber}")
     |> last()
     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
@@ -165,15 +168,15 @@ export class TelemetryService {
         type,
       },
     });
-
-    const filterNodes = nodes
+    const devices = nodes.concat(gateways);
+    const filterDevices = devices
       .map((device) => `r["device"] == "${device.serialNumber}"`)
       .join(' or ');
-    const nodefluxQuery = `
+    const devicefluxQuery = `
     from(bucket: "${tenant.name}")
     |> range(start: 0)
-    |> filter(fn: (r) => r["_measurement"] == "nodehealth")
-    |> filter(fn: (r) => ${filterNodes})
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => ${filterDevices})
     |> last()
     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
     |> group(columns: ["device"])
@@ -181,27 +184,7 @@ export class TelemetryService {
     |> last(column: "device")
     |> drop(columns: ["_start", "_stop"])`;
 
-    const filterGateways = gateways
-      .map((device) => `r["device"] == "${device.serialNumber}"`)
-      .join(' or ');
-    const gatewayfluxQuery = `
-    from(bucket: "${tenant.name}")
-    |> range(start: 0)
-    |> filter(fn: (r) => r["_measurement"] == "gatewayhealth")
-    |> filter(fn: (r) => ${filterGateways})
-    |> last()
-    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-    |> group(columns: ["device"])
-    |> sort(columns: ["_time"], desc: false)
-    |> last(column: "device")
-    |> drop(columns: ["_start", "_stop"])`;
-
-    let nodeHealthData: never[] = [];
-    let gatewayhealthData: never[] = [];
-    try {
-      nodeHealthData = await this.queryApi.collectRows(nodefluxQuery);
-      gatewayhealthData = await this.queryApi.collectRows(gatewayfluxQuery);
-    } catch {}
+    const deviceHealthData = await this.queryApi.collectRows(devicefluxQuery);
 
     const timeNow = new Date().getTime();
 
@@ -209,20 +192,20 @@ export class TelemetryService {
       data: Array<any>,
       devices: { alias: string; serialNumber: string }[],
     ) => {
-      return data.map(({ result: _x, table: _y, ...data }) => {
-        const point = data;
-        const diff =
-          (timeNow - new Date(point._time as string).getTime()) / 1000;
-        point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
-        point['alias'] =
-          devices.find((device) => device.serialNumber === point.device)
-            ?.alias || point.device;
-        return point;
-      });
+      return devices
+        .map((device) => {
+          const point = data.find((x) => x.device === device.serialNumber);
+          if (point === undefined) return;
+          const diff =
+            (timeNow - new Date(point._time as string).getTime()) / 1000;
+          point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
+          return point;
+        })
+        .filter((x) => x);
     };
     return {
-      nodes: calculateDataOnline(nodeHealthData, nodes),
-      gateways: calculateDataOnline(gatewayhealthData, gateways),
+      nodes: calculateDataOnline(deviceHealthData, nodes),
+      gateways: calculateDataOnline(deviceHealthData, gateways),
       timeNow,
     };
   }
