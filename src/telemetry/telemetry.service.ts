@@ -1,5 +1,5 @@
 import { InfluxDB, QueryApi } from '@influxdata/influxdb-client';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NodesService } from 'src/nodes/nodes.service';
 import { INFLUXDB_CLIENT } from 'src/influxdb/influxdb.constant';
@@ -169,6 +169,8 @@ export class TelemetryService {
       },
     });
     const devices = nodes.concat(gateways);
+    if (devices.length === 0)
+      throw new NotFoundException('gateway or node not found');
     const filterDevices = devices
       .map((device) => `r["device"] == "${device.serialNumber}"`)
       .join(' or ');
