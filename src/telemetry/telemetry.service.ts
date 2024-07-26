@@ -199,6 +199,7 @@ export class TelemetryService {
           const diff =
             (timeNow - new Date(point._time as string).getTime()) / 1000;
           point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
+          point['alias'] = device.alias;
           return point;
         })
         .filter((x) => x);
