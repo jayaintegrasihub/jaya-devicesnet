@@ -99,4 +99,19 @@ export class TelemetryController {
       data: { runtime },
     };
   }
+
+  @Get('/details/:device')
+  @RequestLogs('getDetailsTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async findLastWithStatus(
+    @Query() query: any,
+    @Param('device') device: string,
+  ) {
+    const telemetry = await this.telemetryService.findLast(query, device);
+    return {
+      status: 'success',
+      data: telemetry,
+    };
+  }
 }
