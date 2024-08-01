@@ -139,4 +139,24 @@ export class TelemetryController {
       ),
     );
   }
+
+  @Sse('/details/sse/:device')
+  @RequestLogs('getDetailsTelemetrySse')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  findLastWithStatusSse(@Query() query: any, @Param('device') device: string) {
+    return interval(10000).pipe(
+      startWith(0),
+      switchMap(() => from(this.telemetryService.findLast(query, device))),
+      map(
+        (telemetry) =>
+          ({
+            data: {
+              status: 'success',
+              data: { telemetry },
+            },
+          }) as MessageEvent,
+      ),
+    );
+  }
 }

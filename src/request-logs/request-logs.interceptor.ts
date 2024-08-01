@@ -27,7 +27,7 @@ export class RequestLogsInterceptor implements NestInterceptor {
         return response;
       }),
       catchError((err) => {
-        this.saveLog(context, 'error');
+        this.saveLog(err, 'error');
         return throwError(() => err);
       }),
     );
