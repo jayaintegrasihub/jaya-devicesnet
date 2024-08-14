@@ -27,7 +27,7 @@ export class RequestLogsInterceptor implements NestInterceptor {
         return response;
       }),
       catchError((err) => {
-        this.saveLog(err, 'error');
+        this.saveLog(context, 'error');
         return throwError(() => err);
       }),
     );
@@ -38,30 +38,31 @@ export class RequestLogsInterceptor implements NestInterceptor {
     status: 'success' | 'error',
     response?: any,
   ) {
-    const requestLog = this.reflector.get(
-      REQUEST_LOG_DATA,
-      context.getHandler(),
-    );
-    const request = context.switchToHttp().getRequest();
-    const ip = getClientIp(request) ?? 'null';
+    try {
+      const requestLog = this.reflector.get(
+        REQUEST_LOG_DATA,
+        context.getHandler(),
+      );
+      const request = context.switchToHttp().getRequest();
+      const ip = getClientIp(request) ?? 'null';
 
-    if (requestLog) {
-      const data: Prisma.RequestLogsCreateInput = {
-        auditLog: requestLog[0],
-        ipAddress: ip,
-        body: JSON.stringify(request.body),
-        params: JSON.stringify(request.params),
-        status: status,
-        response: JSON.stringify(response) ?? 'none',
-        user: request.user.username,
-      };
-      try {
+      if (requestLog) {
+        const data: Prisma.RequestLogsCreateInput = {
+          auditLog: requestLog[0],
+          ipAddress: ip,
+          body: JSON.stringify(request.body),
+          params: JSON.stringify(request.params),
+          status: status,
+          response: JSON.stringify(response) ?? 'none',
+          user: request.user.username,
+        };
+
         await this.prisma.requestLogs.create({
           data,
         });
-      } catch (error) {
-        this.logger.error('Unable to save request log', error);
       }
+    } catch (error) {
+      this.logger.error('Unable to save request log', error);
     }
   }
 }
