@@ -200,7 +200,7 @@ export class TelemetryService {
 
     const calculateDataOnline = (
       data: Array<any>,
-      devices: { alias: string; serialNumber: string }[],
+      devices: { alias: string; serialNumber: string; id: string }[],
     ) => {
       return devices
         .map((device) => {
@@ -210,6 +210,7 @@ export class TelemetryService {
             (timeNow - new Date(point._time as string).getTime()) / 1000;
           point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
           point['alias'] = device.alias;
+          point['id'] = device.id;
           return point;
         })
         .filter((x) => x);
