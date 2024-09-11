@@ -35,9 +35,7 @@ export class NodesController {
   @UseGuards(AccessTokenGuard)
   async findAll(@Query() params: any) {
     const nodes = await this.nodesService.findAll({ where: params });
-    const nodesEntity = nodes.map(
-      ({ createdAt: _x, updatedAt: _y, ...node }) => new NodesEntity(node),
-    );
+    const nodesEntity = nodes.map((node) => new NodesEntity(node));
     return {
       status: 'success',
       data: { nodes: nodesEntity },
