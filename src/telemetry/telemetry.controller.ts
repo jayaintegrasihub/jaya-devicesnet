@@ -89,12 +89,13 @@ export class TelemetryController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ApiKeysGuard)
   async runtime(@Param('tenant') tenant: string, @Query() query: any) {
-    const { startTime, endTime, type } = query;
+    const { startTime, endTime, type, field } = query;
     const runtime = await this.telemetryService.runtime(
       startTime,
       endTime,
       tenant,
       type,
+      field,
     );
     return {
       status: 'success',

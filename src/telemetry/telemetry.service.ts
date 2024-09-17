@@ -227,6 +227,7 @@ export class TelemetryService {
     endTime: string,
     tenantName: string,
     type: string,
+    field: string,
   ) {
     const tenant = await this.tenantsService.findOne({
       name: tenantName,
@@ -250,7 +251,7 @@ export class TelemetryService {
       |> range(start: ${startTime}, stop: ${endTime})
       |> filter(fn: (r) => r["_measurement"] == "${type}")
       |> filter(fn: (r) => ${filterNodes})
-      |> filter(fn: (r) => r["_field"] == "RS")
+      |> filter(fn: (r) => r["_field"] == "${field}")
       |> events.duration(unit: 1s)
       |> filter(fn: (r) => r["_value"] == 1)
       |> sum(column: "duration")
