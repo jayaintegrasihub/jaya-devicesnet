@@ -17,6 +17,7 @@ import { RequestLogs } from 'src/request-logs/request-logs.decorator';
 import { TelemetryService } from './telemetry.service';
 import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
 import { from, interval, map, Observable, startWith, switchMap } from 'rxjs';
+import { CombinedGuard } from 'src/auth/guards/combined.guard';
 
 @Controller('telemetry')
 @UsePipes(ZodValidationPipe)
@@ -27,7 +28,7 @@ export class TelemetryController {
   @Get('/last/:device')
   @RequestLogs('getLastTelemetry')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ApiKeysGuard)
+  @UseGuards(CombinedGuard)
   async findLast(@Query() query: any, @Param('device') device: string) {
     const telemetry = await this.telemetryService.findLast(query, device);
     return {
@@ -39,7 +40,7 @@ export class TelemetryController {
   @Get('/history/:device')
   @RequestLogs('getHistoryTelemetry')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ApiKeysGuard)
+  @UseGuards(CombinedGuard)
   async findHistory(@Query() query: any, @Param('device') device: string) {
     const telemetries = await this.telemetryService.findHistory(query, device);
     return {
