@@ -7,6 +7,8 @@ import { NodesModule } from 'src/nodes/nodes.module';
 import { ApiKeysModule } from 'src/api-keys/api-keys.module';
 import { TenantsModule } from 'src/tenants/tenants.module';
 import { GatewaysModule } from 'src/gateways/gateways.module';
+import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
+import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 
 @Module({
   imports: [
@@ -18,6 +20,6 @@ import { GatewaysModule } from 'src/gateways/gateways.module';
     GatewaysModule,
   ],
   controllers: [TelemetryController],
-  providers: [TelemetryService],
+  providers: [TelemetryService, AccessTokenGuard, ApiKeysGuard],
 })
 export class TelemetryModule {}
