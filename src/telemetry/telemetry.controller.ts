@@ -161,4 +161,24 @@ export class TelemetryController {
       ),
     );
   }
+
+  @Get('/completeness/:serialNumber')
+  @RequestLogs('getCompletenessTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async completeness(
+    @Param('serialNumber') serialNumber: string,
+    @Query() query: any,
+  ) {
+    const { startTime, endTime } = query;
+    const completeness = await this.telemetryService.completeness(
+      startTime,
+      endTime,
+      serialNumber,
+    );
+    return {
+      status: 'success',
+      data: { completeness },
+    };
+  }
 }
