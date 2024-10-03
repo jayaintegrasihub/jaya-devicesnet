@@ -53,7 +53,11 @@ export class NodesService {
     return node;
   }
 
-  delete(where: Prisma.NodesWhereUniqueInput) {
+  async delete(where: Prisma.NodesWhereUniqueInput) {
+    const node = await this.prisma.nodes.findFirstOrThrow({ where });
+
+    // this redis delete for logic jaya-transport-service
+    await this.redis.del(`device/${node.serialNumber}`);
     return this.prisma.nodes.delete({ where });
   }
 

@@ -66,7 +66,11 @@ export class GatewaysService {
     return gateway;
   }
 
-  delete(where: Prisma.GatewaysWhereUniqueInput) {
+  async delete(where: Prisma.GatewaysWhereUniqueInput) {
+    const gateway = await this.prisma.gateways.findFirstOrThrow({ where });
+
+    // this redis delete for logic jaya-transport-service
+    await this.redis.del(`device/${gateway.serialNumber}`);
     return this.prisma.gateways.delete({ where });
   }
 
