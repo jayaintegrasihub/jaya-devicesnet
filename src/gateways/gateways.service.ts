@@ -116,7 +116,9 @@ export class GatewaysService {
     |> range(start: -7d)
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
     |> filter(fn: (r) => r["gateway"] == "${serialNumber}" and r["device"] != "${serialNumber}")
+    |> last(column : "_time")
     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+    |> group(columns: ["device"], mode:"by")  
     |> last(column : "_time")`;
     const nodeInflux = await this.queryApi.collectRows(fluxQuery);
     const listNode = nodeInflux.map((value: any) => {
