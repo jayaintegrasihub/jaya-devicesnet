@@ -49,7 +49,7 @@ export class GatewaysController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
   async findOne(@Param('id') id: string) {
-    const gateway = await this.gatewaysService.findOne({ id });
+    const gateway = await this.gatewaysService.findOne(id);
     const gatewaysEntity = new GatewaysEntity(gateway);
     return {
       status: 'success',
@@ -97,6 +97,18 @@ export class GatewaysController {
     return {
       status: 'success',
       data: null,
+    };
+  }
+
+  @Get('/find-node/:id')
+  @RequestLogs('findNode')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async findNode(@Param('id') id: string) {
+    const nodes = await this.gatewaysService.findNode(id);
+    return {
+      status: 'success',
+      data: { nodes },
     };
   }
 }

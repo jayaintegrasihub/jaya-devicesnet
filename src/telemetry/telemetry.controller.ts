@@ -17,6 +17,7 @@ import { RequestLogs } from 'src/request-logs/request-logs.decorator';
 import { TelemetryService } from './telemetry.service';
 import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
 import { from, interval, map, Observable, startWith, switchMap } from 'rxjs';
+import { CombinedGuard } from 'src/api-keys/guards/combined.guard';
 
 @Controller('telemetry')
 @UsePipes(ZodValidationPipe)
@@ -39,7 +40,7 @@ export class TelemetryController {
   @Get('/history/:device')
   @RequestLogs('getHistoryTelemetry')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ApiKeysGuard)
+  @UseGuards(CombinedGuard)
   async findHistory(@Query() query: any, @Param('device') device: string) {
     const telemetries = await this.telemetryService.findHistory(query, device);
     return {
@@ -89,12 +90,13 @@ export class TelemetryController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ApiKeysGuard)
   async runtime(@Param('tenant') tenant: string, @Query() query: any) {
-    const { startTime, endTime, type } = query;
+    const { startTime, endTime, type, field } = query;
     const runtime = await this.telemetryService.runtime(
       startTime,
       endTime,
       tenant,
       type,
+      field,
     );
     return {
       status: 'success',
@@ -158,5 +160,25 @@ export class TelemetryController {
           }) as MessageEvent,
       ),
     );
+  }
+
+  @Get('/completeness/:serialNumber')
+  @RequestLogs('getCompletenessTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async completeness(
+    @Param('serialNumber') serialNumber: string,
+    @Query() query: any,
+  ) {
+    const { startTime, endTime } = query;
+    const completeness = await this.telemetryService.completeness(
+      startTime,
+      endTime,
+      serialNumber,
+    );
+    return {
+      status: 'success',
+      data: { completeness },
+    };
   }
 }

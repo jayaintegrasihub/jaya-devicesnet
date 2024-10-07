@@ -1,10 +1,12 @@
 import { InfluxDB, QueryApi } from '@influxdata/influxdb-client';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NodesService } from 'src/nodes/nodes.service';
 import { INFLUXDB_CLIENT } from 'src/influxdb/influxdb.constant';
 import { TenantsService } from 'src/tenants/tenants.service';
 import { GatewaysService } from 'src/gateways/gateways.service';
+import { GatewaysEntity } from 'src/gateways/entity/gateways.entity';
+import { NodesEntity } from 'src/nodes/entity/node.entity';
 
 Injectable();
 export class TelemetryService {
@@ -200,7 +202,7 @@ export class TelemetryService {
 
     const calculateDataOnline = (
       data: Array<any>,
-      devices: { alias: string; serialNumber: string }[],
+      devices: { alias: string; serialNumber: string; id: string }[],
     ) => {
       return devices
         .map((device) => {
@@ -210,6 +212,7 @@ export class TelemetryService {
             (timeNow - new Date(point._time as string).getTime()) / 1000;
           point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
           point['alias'] = device.alias;
+          point['id'] = device.id;
           return point;
         })
         .filter((x) => x);
@@ -226,6 +229,7 @@ export class TelemetryService {
     endTime: string,
     tenantName: string,
     type: string,
+    field: string,
   ) {
     const tenant = await this.tenantsService.findOne({
       name: tenantName,
@@ -249,7 +253,7 @@ export class TelemetryService {
       |> range(start: ${startTime}, stop: ${endTime})
       |> filter(fn: (r) => r["_measurement"] == "${type}")
       |> filter(fn: (r) => ${filterNodes})
-      |> filter(fn: (r) => r["_field"] == "RS")
+      |> filter(fn: (r) => r["_field"] == "${field}")
       |> events.duration(unit: 1s)
       |> filter(fn: (r) => r["_value"] == 1)
       |> sum(column: "duration")
@@ -266,5 +270,73 @@ export class TelemetryService {
         serialNumber: node.serialNumber,
       };
     });
+  }
+
+  async completeness(startTime: string, endTime: string, serialNumber: string) {
+    const device = await this.findGatewayorNode(serialNumber);
+    if (!device) throw new NotFoundException('Device not found');
+
+    const healthCountQuery = `
+    from(bucket: "${device.tenant?.name}")
+    |> range(start: ${startTime}, stop: ${endTime})
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["_field"] == "uptime")
+    |> filter(fn: (r) => r["device"] == "${serialNumber}")
+    |> group(columns: ["device"], mode:"by")  
+    |> aggregateWindow(every: 1d, fn: count)  
+    `;
+    const dataCountQuery = `
+    from(bucket: "${device.tenant?.name}")
+    |> range(start: ${startTime}, stop: ${endTime})
+    |> filter(fn: (r) => r["_measurement"] == "${device.type}")
+    |> filter(fn: (r) => r["device"] == "${serialNumber}")
+    |> group(columns: ["device", "_field"], mode:"by")  
+    |> aggregateWindow(every: 1d, fn: count)  
+    `;
+    const healthCount = await this.queryApi.collectRows(healthCountQuery);
+    const dataCount = await this.queryApi.collectRows(dataCountQuery);
+
+    const cleanedHealthCount = healthCount.map(({ _time, device, _value }) => ({
+      time: _time,
+      device: device,
+      count: _value,
+    }));
+    const dataCountGroupedByField = dataCount.reduce(
+      (acc: any, item: any) => {
+        if (!acc[item._field]) {
+          acc[item._field] = [];
+        }
+        acc[item._field].push({
+          time: item._time,
+          device: item.device,
+          count: item._value,
+        });
+        return acc;
+      },
+      {} as Record<string, typeof dataCount>,
+    );
+    return {
+      healthCount: cleanedHealthCount,
+      dataCount: dataCountGroupedByField,
+    };
+  }
+
+  async findGatewayorNode(serialNumber: string) {
+    let gateway: GatewaysEntity | null = null;
+    let node: NodesEntity | null = null;
+
+    try {
+      gateway = await this.gatewaysService.findOneWithSerialNumber({
+        serialNumber,
+      });
+    } catch (error) {}
+
+    try {
+      node = await this.nodesService.findOneWithSerialNumber({
+        serialNumber,
+      });
+    } catch (error) {}
+
+    return gateway || node;
   }
 }
