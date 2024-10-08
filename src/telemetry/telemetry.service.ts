@@ -272,7 +272,12 @@ export class TelemetryService {
     });
   }
 
-  async completeness(startTime: string, endTime: string, serialNumber: string) {
+  async completeness(
+    startTime: string,
+    endTime: string,
+    serialNumber: string,
+    timezone: string,
+  ) {
     const device = await this.findGatewayorNode(serialNumber);
     if (!device) throw new NotFoundException('Device not found');
 
@@ -291,7 +296,7 @@ export class TelemetryService {
     |> filter(fn: (r) => r["_measurement"] == "${device.type}")
     |> filter(fn: (r) => r["device"] == "${serialNumber}")
     |> group(columns: ["device", "_field"], mode:"by")  
-    |> aggregateWindow(every: 1d, fn: count)  
+    |> aggregateWindow(every: 1d, fn: count, location: timezone.location(name: "${timezone}"))  
     `;
     const healthCount = await this.queryApi.collectRows(healthCountQuery);
     const dataCount = await this.queryApi.collectRows(dataCountQuery);

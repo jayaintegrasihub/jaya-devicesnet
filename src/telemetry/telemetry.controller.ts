@@ -170,11 +170,12 @@ export class TelemetryController {
     @Param('serialNumber') serialNumber: string,
     @Query() query: any,
   ) {
-    const { startTime, endTime } = query;
+    const { startTime, endTime, timezone } = query;
     const completeness = await this.telemetryService.completeness(
       startTime,
       endTime,
       serialNumber,
+      timezone,
     );
     return {
       status: 'success',
