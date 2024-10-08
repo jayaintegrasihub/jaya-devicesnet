@@ -76,6 +76,7 @@ export class TelemetryService {
     |> last()
     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
     |> group(columns: ["device"])
+    |> sort(columns: ["_time"], desc: false)
     |> last(column: "device")
     |> drop(columns: ["_start", "_stop"])`;
     const resultStatus = await this.queryApi.collectRows(statusFlux);
