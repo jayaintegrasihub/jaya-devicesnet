@@ -282,15 +282,19 @@ export class TelemetryService {
     if (!device) throw new NotFoundException('Device not found');
 
     const healthCountQuery = `
+    import "timezone"
+
     from(bucket: "${device.tenant?.name}")
     |> range(start: ${startTime}, stop: ${endTime})
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
     |> filter(fn: (r) => r["_field"] == "uptime")
     |> filter(fn: (r) => r["device"] == "${serialNumber}")
     |> group(columns: ["device"], mode:"by")  
-    |> aggregateWindow(every: 1d, fn: count)  
+    |> aggregateWindow(every: 1d, fn: count, location: timezone.location(name: "${timezone}"))   
     `;
     const dataCountQuery = `
+    import "timezone"
+
     from(bucket: "${device.tenant?.name}")
     |> range(start: ${startTime}, stop: ${endTime})
     |> filter(fn: (r) => r["_measurement"] == "${device.type}")
