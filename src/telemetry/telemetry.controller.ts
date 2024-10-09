@@ -104,6 +104,27 @@ export class TelemetryController {
     };
   }
 
+  @Get('/runtime-device/:serialNumber')
+  @RequestLogs('getRuntimeTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiKeysGuard)
+  async runtimePerDevice(
+    @Param('serialNumber') serialNumber: string,
+    @Query() query: any,
+  ) {
+    const { startTime, endTime, field } = query;
+    const runtime = await this.telemetryService.runtimePerDevice(
+      startTime,
+      endTime,
+      serialNumber,
+      field,
+    );
+    return {
+      status: 'success',
+      data: { runtime },
+    };
+  }
+
   @Get('/details/:device')
   @RequestLogs('getDetailsTelemetry')
   @HttpCode(HttpStatus.OK)

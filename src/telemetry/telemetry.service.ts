@@ -273,6 +273,41 @@ export class TelemetryService {
     });
   }
 
+  async runtimePerDevice(
+    startTime: string,
+    endTime: string,
+    serialNumber: string,
+    field: string,
+  ) {
+    const node = await this.nodesService.findOne({
+      serialNumber,
+    });
+    const fluxQuery = `
+    import "contrib/tomhollingworth/events"
+    import "experimental/array"
+    import "math"
+
+    from(bucket: "${node.tenant?.name}")
+      |> range(start: ${startTime}, stop: ${endTime})
+      |> filter(fn: (r) => r["_measurement"] == "${node.type}")
+      |> filter(fn: (r) => r["device"] == "${node.serialNumber}")
+      |> filter(fn: (r) => r["_field"] == "${field}")
+      |> events.duration(unit: 1s)
+      |> filter(fn: (r) => r["_value"] == 1)
+      |> sum(column: "duration")
+      |> map(fn: (r) => ({  device: r["device"], _value: math.round(x: float(v:r["duration"]) / 60.00) }))`;
+
+    const runtimeData = await this.queryApi.collectRows(fluxQuery);
+    const runtime: any = runtimeData.find(
+      (data: any) => data.device === node.serialNumber,
+    );
+    return {
+      _value: runtime === undefined ? 0 : runtime._value,
+      alias: node.alias,
+      serialNumber: node.serialNumber,
+    };
+  }
+
   async completeness(
     startTime: string,
     endTime: string,
