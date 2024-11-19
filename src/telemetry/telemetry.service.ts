@@ -184,13 +184,13 @@ export class TelemetryService {
       };
 
     const filterDevices = devices
-      .map((device) => `r["device"] == "${device.serialNumber}"`)
-      .join(' or ');
+      .map((device) => device.serialNumber)
+      .join('|');
     const devicefluxQuery = `
     from(bucket: "${tenant.name}")
     |> range(start: 0)
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
-    |> filter(fn: (r) => ${filterDevices})
+    |> filter(fn: (r) => r["device"] =~ /${filterDevices})/)
     |> last()
     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
     |> group(columns: ["device"])
@@ -242,9 +242,7 @@ export class TelemetryService {
       },
     });
 
-    const filterNodes = nodes
-      .map((device) => `r["device"] == "${device.serialNumber}"`)
-      .join(' or ');
+    const filterNodes = nodes.map((node) => node.serialNumber).join('|');
     const fluxQuery = `
     import "contrib/tomhollingworth/events"
     import "experimental/array"
@@ -253,7 +251,7 @@ export class TelemetryService {
     from(bucket: "${tenantName}")
       |> range(start: ${startTime}, stop: ${endTime})
       |> filter(fn: (r) => r["_measurement"] == "${type}")
-      |> filter(fn: (r) => ${filterNodes})
+      |> filter(fn: (r) => r["device"] =~ /${filterNodes})/)
       |> filter(fn: (r) => r["_field"] == "${field}")
       |> events.duration(unit: 1s)
       |> filter(fn: (r) => r["_value"] == 1)
