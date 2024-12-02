@@ -382,4 +382,36 @@ export class TelemetryService {
 
     return gateway || node;
   }
+
+  async gatewayHealth(deviceNumber: string) {
+    const device = await this.gatewaysService.findOneWithSerialNumber({
+      serialNumber: deviceNumber,
+    });
+
+    const { serialNumber, tenant } = device;
+    const statusFlux = `
+    from(bucket: "${tenant?.name}")
+    |> range(start: 0)
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["device"] == "${serialNumber}")
+    |> last()
+    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+    |> group(columns: ["device"])
+    |> sort(columns: ["_time"], desc: false)
+    |> last(column: "device")
+    |> drop(columns: ["_start", "_stop"])`;
+    const resultStatus = await this.queryApi.collectRows(statusFlux);
+    const timeNow = new Date().getTime();
+    const dataOnline = resultStatus.map(
+      ({ result: _x, table: _y, ...data }) => {
+        const point = data;
+        const diff =
+          (timeNow - new Date(point._time as string).getTime()) / 1000;
+        point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
+        point['alias'] = device.alias;
+        return point;
+      },
+    );
+    return dataOnline[0];
+  }
 }

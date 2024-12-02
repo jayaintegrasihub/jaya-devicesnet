@@ -140,6 +140,26 @@ export class TelemetryController {
     };
   }
 
+  @Sse('/gateway-health/:device')
+  @RequestLogs('getGatewayHealth')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  gatewayHealth(@Param('device') device: string): Observable<MessageEvent> {
+    return interval(10000).pipe(
+      startWith(0),
+      switchMap(() => from(this.telemetryService.gatewayHealth(device))),
+      map(
+        (gatewayHealth) =>
+          ({
+            data: {
+              status: 'success',
+              data: { gatewayHealth },
+            },
+          }) as MessageEvent,
+      ),
+    );
+  }
+
   @Sse('/access-token/status-device/sse/:tenant')
   @RequestLogs('getStatusDeviceTelemetrySSE')
   @HttpCode(HttpStatus.OK)
