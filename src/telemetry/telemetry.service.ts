@@ -414,4 +414,37 @@ export class TelemetryService {
     );
     return dataOnline[0];
   }
+
+  async healthHistory(
+    serialNumber: string,
+    startTime: string,
+    endTime: string,
+  ) {
+    const [gatewayResult, nodeResult] = await Promise.allSettled([
+      this.gatewaysService.findOneWithSerialNumber({ serialNumber }),
+      this.nodesService.findOneWithSerialNumber({ serialNumber }),
+    ]);
+
+    const device =
+      gatewayResult.status === 'fulfilled'
+        ? gatewayResult.value
+        : nodeResult.status === 'fulfilled'
+          ? nodeResult.value
+          : null;
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const flux = `
+    from(bucket: "${device.tenant?.name}")
+    |> range(start: ${startTime}, stop: ${endTime})
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
+    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+    |> group(columns: ["device"])
+    |> sort(columns: ["_time"], desc: false)
+    |> drop(columns: ["_start", "_stop"])`;
+    return await this.queryApi.collectRows(flux);
+  }
 }

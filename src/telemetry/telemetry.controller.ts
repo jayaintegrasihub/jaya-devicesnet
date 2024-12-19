@@ -223,4 +223,24 @@ export class TelemetryController {
       data: { completeness },
     };
   }
+
+  @Get('/health-history/:serialNumber')
+  @RequestLogs('getHealthHistory')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async healthHistory(
+    @Param('serialNumber') serialNumber: string,
+    @Query() query: any,
+  ) {
+    const { startTime, endTime } = query;
+    const healthHistory = await this.telemetryService.healthHistory(
+      serialNumber,
+      startTime,
+      endTime,
+    );
+    return {
+      status: 'success',
+      data: { healthHistory },
+    };
+  }
 }
