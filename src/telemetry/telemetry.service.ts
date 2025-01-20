@@ -61,6 +61,7 @@ export class TelemetryService {
     ${filterFieldsFlux}
     |> last()
     |> group(columns: ["device","_field"], mode:"by")  
+    |> sort(columns: ["_time"], desc: false)
     |> last()
     |> drop(columns: ["_start", "_stop"])`;
 
