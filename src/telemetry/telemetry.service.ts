@@ -54,11 +54,13 @@ export class TelemetryService {
 
     const fluxQuery = `
     from(bucket: "${tenant?.name}")
-    |> range(start: 0)
+    |> range(start: -30d)
     |> filter(fn: (r) => r["_measurement"] == "${type}")
     ${filterTagsFlux}
     |> filter(fn: (r) => r["device"] == "${serialNumber}")
     ${filterFieldsFlux}
+    |> last()
+    |> group(columns: ["device","_field"], mode:"by")  
     |> last()
     |> drop(columns: ["_start", "_stop"])`;
 
