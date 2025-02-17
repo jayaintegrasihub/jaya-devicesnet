@@ -18,10 +18,14 @@ import { TelemetryModule } from './telemetry/telemetry.module';
 import { ServiceConnectorModule } from './service-connector/service-connector.module';
 import { MqttAccountModule } from './mqtt-account/mqtt-account.module';
 import { MqttAclModule } from './mqtt-acl/mqtt-acl.module';
+import mqttConfiguration from './config/mqtt.config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      load: [mqttConfiguration],
+      isGlobal: true,
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,

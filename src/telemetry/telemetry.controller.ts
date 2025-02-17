@@ -3,6 +3,7 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Get,
+  Post,
   HttpCode,
   HttpStatus,
   Param,
@@ -11,6 +12,7 @@ import {
   UseGuards,
   UseInterceptors,
   UsePipes,
+  Body,
 } from '@nestjs/common';
 import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
@@ -18,6 +20,7 @@ import { TelemetryService } from './telemetry.service';
 import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
 import { from, interval, map, Observable, startWith, switchMap } from 'rxjs';
 import { CombinedGuard } from 'src/api-keys/guards/combined.guard';
+import { CommandPayloadDto } from './dto/command.dto';
 
 @Controller('telemetry')
 @UsePipes(ZodValidationPipe)
@@ -179,6 +182,19 @@ export class TelemetryController {
     return {
       status: 'success',
       data: { completeness },
+    };
+  }
+
+  @Post('/command')
+  @RequestLogs('commandHandlerTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CombinedGuard)
+  async command(@Body() data: CommandPayloadDto) {
+    console.log('test');
+    const command = await this.telemetryService.postCommandToMQTT(data);
+    return {
+      status: 'success',
+      data: { command },
     };
   }
 }

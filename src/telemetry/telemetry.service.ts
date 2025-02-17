@@ -7,6 +7,8 @@ import { TenantsService } from 'src/tenants/tenants.service';
 import { GatewaysService } from 'src/gateways/gateways.service';
 import { GatewaysEntity } from 'src/gateways/entity/gateways.entity';
 import { NodesEntity } from 'src/nodes/entity/node.entity';
+import { CommandPayloadDto } from './dto/command.dto';
+import { TelemetryMqttPublisher } from 'src/mqtt/telemetry/telemetry.mqtt-publisher';
 
 Injectable();
 export class TelemetryService {
@@ -18,6 +20,7 @@ export class TelemetryService {
     private nodesService: NodesService,
     private tenantsService: TenantsService,
     private gatewaysService: GatewaysService,
+    private telemetryMqttPublisher: TelemetryMqttPublisher,
   ) {
     const org = this.configService.get('INFLUXDB_ORG_ID');
     const queryApi = this.influx.getQueryApi(org);
@@ -338,5 +341,36 @@ export class TelemetryService {
     } catch (error) {}
 
     return gateway || node;
+  }
+
+  async postCommandToMQTT(data: CommandPayloadDto) {
+    const { tenantName, nodeId, payload, gatewayId } = data;
+
+    await this.tenantsService.findOne({
+      name: tenantName,
+    });
+
+    if (gatewayId) {
+      await this.gatewaysService.findOneWithSerialNumber({
+        serialNumber: gatewayId,
+        tenant: {
+          name: tenantName,
+        },
+      });
+    }
+
+    await this.nodesService.findOneWithSerialNumber({
+      serialNumber: nodeId,
+      tenant: {
+        name: tenantName,
+      },
+    });
+
+    this.telemetryMqttPublisher.commandTelemetry(gatewayId, nodeId, payload);
+
+    return {
+      status: 200,
+      message: 'command send successfully',
+    };
   }
 }
