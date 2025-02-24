@@ -190,7 +190,6 @@ export class TelemetryController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(CombinedGuard)
   async command(@Body() data: CommandPayloadDto) {
-    console.log('test');
     const command = await this.telemetryService.postCommandToMQTT(data);
     return {
       status: 'success',
