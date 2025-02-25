@@ -7,7 +7,7 @@ export function createMqttClientProvider(): Provider {
   return {
     provide: MQTT_CLIENT_INSTANCE,
     useFactory: (options: any, logger: Logger) => {
-      let client = connect(options.url, options);
+      let client = connect(options.url, { ...options, connectTimeout: 3000 });
       client.on('connect', () => {
         logger.log(
           `MQTT Client connect to ${client.options.hostname} with port ${client.options.port}`,

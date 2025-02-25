@@ -13,6 +13,8 @@ import {
   UseInterceptors,
   UsePipes,
   Body,
+  Inject,
+  Res,
 } from '@nestjs/common';
 import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
@@ -21,12 +23,18 @@ import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
 import { from, interval, map, Observable, startWith, switchMap } from 'rxjs';
 import { CombinedGuard } from 'src/api-keys/guards/combined.guard';
 import { CommandPayloadDto } from './dto/command.dto';
+import { MQTT_CLIENT_INSTANCE } from 'src/mqtt/mqtt.constant';
+import { Response } from 'express';
+import { MqttClient } from '@nestjs/microservices/external/mqtt-client.interface';
 
 @Controller('telemetry')
 @UsePipes(ZodValidationPipe)
 @UseInterceptors(ClassSerializerInterceptor)
 export class TelemetryController {
-  constructor(private telemetryService: TelemetryService) {}
+  constructor(
+    private telemetryService: TelemetryService,
+    @Inject(MQTT_CLIENT_INSTANCE) private mqtt: MqttClient,
+  ) {}
 
   @Get('/last/:device')
   @RequestLogs('getLastTelemetry')
@@ -189,7 +197,14 @@ export class TelemetryController {
   @RequestLogs('commandHandlerTelemetry')
   @HttpCode(HttpStatus.OK)
   @UseGuards(CombinedGuard)
-  async command(@Body() data: CommandPayloadDto) {
+  async command(@Body() data: CommandPayloadDto, @Res() res: Response) {
+    if (!this.mqtt.connected) {
+      res.status(503).send({
+        status: 503,
+        message: 'Service not connected to message broker',
+      });
+    }
+
     const command = await this.telemetryService.postCommandToMQTT(data);
     return {
       status: 'success',
