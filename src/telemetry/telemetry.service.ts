@@ -418,6 +418,7 @@ export class TelemetryService {
       status: 200,
       message: 'command send successfully',
     };
+  }
 
   async gatewayHealth(deviceNumber: string) {
     const device = await this.gatewaysService.findOneWithSerialNumber({
