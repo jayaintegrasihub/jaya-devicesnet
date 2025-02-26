@@ -2,11 +2,13 @@
 # BUILD FOR LOCAL DEVELOPMENT
 ###################
 
-FROM node:18-alpine As development
+FROM node:22-alpine As development
 
 # Create app directory
 WORKDIR /usr/src/app
 
+# https://github.com/prisma/prisma/discussions/19341
+RUN apk add --no-cache openssl
 # Copy application dependency manifests to the container image.
 # A wildcard is used to ensure copying both package.json AND package-lock.json (when available).
 # Copying this first prevents re-running npm install on every code change.
@@ -25,9 +27,12 @@ USER node
 # BUILD FOR PRODUCTION
 ###################
 
-FROM node:18-alpine As build
+FROM node:22-alpine As build
 
 WORKDIR /usr/src/app
+
+# https://github.com/prisma/prisma/discussions/19341
+RUN apk add --no-cache openssl
 
 COPY --chown=node:node package*.json ./
 
@@ -52,7 +57,10 @@ USER node
 # PRODUCTION
 ###################
 
-FROM node:18-alpine As production
+FROM node:22-alpine As production
+
+# https://github.com/prisma/prisma/discussions/19341
+RUN apk add --no-cache openssl
 
 # Copy the bundled code from the build stage to the production image
 COPY --chown=node:node --from=build /usr/src/app/node_modules ./node_modules

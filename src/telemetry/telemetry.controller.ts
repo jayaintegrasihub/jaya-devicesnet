@@ -115,6 +115,27 @@ export class TelemetryController {
     };
   }
 
+  @Get('/runtime-device/:serialNumber')
+  @RequestLogs('getRuntimeTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiKeysGuard)
+  async runtimePerDevice(
+    @Param('serialNumber') serialNumber: string,
+    @Query() query: any,
+  ) {
+    const { startTime, endTime, field } = query;
+    const runtime = await this.telemetryService.runtimePerDevice(
+      startTime,
+      endTime,
+      serialNumber,
+      field,
+    );
+    return {
+      status: 'success',
+      data: { runtime },
+    };
+  }
+
   @Get('/details/:device')
   @RequestLogs('getDetailsTelemetry')
   @HttpCode(HttpStatus.OK)
@@ -128,6 +149,26 @@ export class TelemetryController {
       status: 'success',
       data: telemetry,
     };
+  }
+
+  @Sse('/gateway-health/:device')
+  @RequestLogs('getGatewayHealth')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  gatewayHealth(@Param('device') device: string): Observable<MessageEvent> {
+    return interval(10000).pipe(
+      startWith(0),
+      switchMap(() => from(this.telemetryService.gatewayHealth(device))),
+      map(
+        (gatewayHealth) =>
+          ({
+            data: {
+              status: 'success',
+              data: { gatewayHealth },
+            },
+          }) as MessageEvent,
+      ),
+    );
   }
 
   @Sse('/access-token/status-device/sse/:tenant')
@@ -181,11 +222,12 @@ export class TelemetryController {
     @Param('serialNumber') serialNumber: string,
     @Query() query: any,
   ) {
-    const { startTime, endTime } = query;
+    const { startTime, endTime, timezone } = query;
     const completeness = await this.telemetryService.completeness(
       startTime,
       endTime,
       serialNumber,
+      timezone,
     );
     return {
       status: 'success',
@@ -209,6 +251,26 @@ export class TelemetryController {
     return {
       status: 'success',
       data: { command },
+    };
+  }
+
+  @Get('/health-history/:serialNumber')
+  @RequestLogs('getHealthHistory')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async healthHistory(
+    @Param('serialNumber') serialNumber: string,
+    @Query() query: any,
+  ) {
+    const { startTime, endTime } = query;
+    const healthHistory = await this.telemetryService.healthHistory(
+      serialNumber,
+      startTime,
+      endTime,
+    );
+    return {
+      status: 'success',
+      data: { healthHistory },
     };
   }
 }
