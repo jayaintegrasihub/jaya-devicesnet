@@ -484,4 +484,74 @@ export class TelemetryService {
     |> drop(columns: ["_start", "_stop"])`;
     return await this.queryApi.collectRows(flux);
   }
+
+  async reportCompliteness(
+    tenantId: string,
+    type: string,
+    startTime: string,
+    endTime: string,
+  ) {
+    const tenant = await this.tenantsService.findOne({ id: tenantId });
+
+    // Find gateways and nodes with type
+    const gateways = await this.gatewaysService.findAll({ where: { type } });
+    const nodes = await this.nodesService.findAll({ where: { type } });
+
+    const flux = `
+    a = from(bucket: "${tenant.name}")
+    |> range(start: ${startTime}, stop: ${endTime})
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["_field"] == "uptime")
+    |> difference()
+    |> filter(fn: (r) => r["_value"] > 0)
+    |> sum()
+    |> map(fn: (r) => ({ r with _field: "duration" }))
+
+    b = from(bucket: "${tenant.name}")
+    |> range(start: ${startTime}, stop: ${endTime})
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["_field"] == "uptime")
+    |> count()
+    |> map(fn: (r) => ({ r with _field: "count" }))
+
+    union(tables: [a, b])
+    `;
+
+    const result = await this.queryApi.collectRows(flux);
+
+    const gatewaysResult = gateways.map((gateway) => {
+      const count = result.find(
+        (data: any) =>
+          data._field === 'count' && data.device === gateway.serialNumber,
+      ) as any;
+      const duration = result.find(
+        (data: any) =>
+          data._field === 'duration' && data.device === gateway.serialNumber,
+      ) as any;
+      return {
+        ...gateway,
+        count: count?._value || 0,
+        duration: duration?._value || 0,
+      };
+    });
+    const nodesResult = nodes.map((node) => {
+      const count = result.find(
+        (data: any) =>
+          data._field === 'count' && data.device === node.serialNumber,
+      ) as any;
+      const duration = result.find(
+        (data: any) =>
+          data._field === 'duration' && data.device === node.serialNumber,
+      ) as any;
+      return {
+        ...node,
+        count: count?._value || 0,
+        duration: duration?._value || 0,
+      };
+    });
+    return {
+      gateways: gatewaysResult,
+      nodes: nodesResult,
+    };
+  }
 }

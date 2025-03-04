@@ -273,4 +273,22 @@ export class TelemetryController {
       data: { healthHistory },
     };
   }
+
+  @Get('/report-completeness')
+  @RequestLogs('getCompletenessTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async reportCompleteness(@Query() query: any) {
+    const { tenantId, type, startTime, endTime } = query;
+    const report = await this.telemetryService.reportCompliteness(
+      tenantId,
+      type,
+      startTime,
+      endTime,
+    );
+    return {
+      status: 'success',
+      data: { report },
+    };
+  }
 }
