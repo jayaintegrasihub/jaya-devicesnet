@@ -48,6 +48,29 @@ export class TelemetryController {
     };
   }
 
+  @Sse('/last/sse/:device')
+  @RequestLogs('getLastTelemetrySse')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiKeysGuard)
+  findLastSse(
+    @Query() query: any,
+    @Param('device') device: string,
+  ): Observable<MessageEvent> {
+    return interval(10000).pipe(
+      startWith(0),
+      switchMap(() => from(this.telemetryService.findLast(query, device))),
+      map(
+        (telemetry) =>
+          ({
+            data: {
+              status: 'success',
+              data: { telemetry },
+            },
+          }) as MessageEvent,
+      ),
+    );
+  }
+
   @Get('/history/:device')
   @RequestLogs('getHistoryTelemetry')
   @HttpCode(HttpStatus.OK)
@@ -76,6 +99,29 @@ export class TelemetryController {
       status: 'success',
       data: { statusDevices },
     };
+  }
+
+  @Sse('/status-device/sse/:tenant')
+  @RequestLogs('getStatusDeviceTelemetrySse')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiKeysGuard)
+  statusDeviceSse(
+    @Param('tenant') tenant: string,
+    @Query('type') type: string,
+  ): Observable<MessageEvent> {
+    return interval(10000).pipe(
+      startWith(0),
+      switchMap(() => from(this.telemetryService.statusDevices(tenant, type))),
+      map(
+        (statusDevices) =>
+          ({
+            data: {
+              status: 'success',
+              data: { statusDevices },
+            },
+          }) as MessageEvent,
+      ),
+    );
   }
 
   @Get('/access-token/status-device/:tenant')
