@@ -41,7 +41,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (status === 500) {
       res.status = 'error';
-      res.message = 'Internal Server Error';
+      const err = errObj as any;
+      res.message = err.message || 'Internal Server Error';
     }
 
     response.status(status).json(res);
