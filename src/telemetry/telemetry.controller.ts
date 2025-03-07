@@ -14,7 +14,7 @@ import {
   UsePipes,
   Body,
   Inject,
-  Res,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
@@ -24,7 +24,6 @@ import { from, interval, map, Observable, startWith, switchMap } from 'rxjs';
 import { CombinedGuard } from 'src/api-keys/guards/combined.guard';
 import { CommandPayloadDto } from './dto/command.dto';
 import { MQTT_CLIENT_INSTANCE } from 'src/mqtt/mqtt.constant';
-import { Response } from 'express';
 import { MqttClient } from '@nestjs/microservices/external/mqtt-client.interface';
 
 @Controller('telemetry')
@@ -285,14 +284,12 @@ export class TelemetryController {
   @RequestLogs('commandHandlerTelemetry')
   @HttpCode(HttpStatus.OK)
   @UseGuards(CombinedGuard)
-  async command(@Body() data: CommandPayloadDto, @Res() res: Response) {
-    if (!this.mqtt.connected) {
-      res.status(503).send({
-        status: 503,
-        message: 'Service not connected to message broker',
-      });
+  async command(@Body() data: CommandPayloadDto) {
+    if (this.mqtt.connected) {
+      throw new InternalServerErrorException(
+        'server not connected to message broker',
+      );
     }
-
     const command = await this.telemetryService.postCommandToMQTT(data);
     return {
       status: 'success',

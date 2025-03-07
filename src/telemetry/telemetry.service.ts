@@ -415,7 +415,6 @@ export class TelemetryService {
     this.telemetryMqttPublisher.commandTelemetry(gatewayId, nodeId, payload);
 
     return {
-      status: 200,
       message: 'command send successfully',
     };
   }
