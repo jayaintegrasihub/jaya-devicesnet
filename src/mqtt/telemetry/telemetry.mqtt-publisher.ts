@@ -7,11 +7,7 @@ import { MQTT_CLIENT_INSTANCE } from '../mqtt.constant';
 export class TelemetryMqttPublisher {
   constructor(@Inject(MQTT_CLIENT_INSTANCE) private mqtt: MqttClient) {}
 
-  async commandTelemetry(
-    gatewayId: string | undefined,
-    nodeId: string,
-    data: any,
-  ) {
+  commandTelemetry(gatewayId: string | undefined, nodeId: string, data: any) {
     const payload = JSON.stringify(data);
 
     if (gatewayId) {
