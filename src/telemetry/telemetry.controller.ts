@@ -285,7 +285,7 @@ export class TelemetryController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(CombinedGuard)
   async command(@Body() data: CommandPayloadDto) {
-    if (this.mqtt.connected) {
+    if (!this.mqtt.connected) {
       throw new InternalServerErrorException(
         'server not connected to message broker',
       );
