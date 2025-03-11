@@ -489,18 +489,26 @@ export class TelemetryService {
     type: string,
     startTime: string,
     endTime: string,
+    timezone: string,
   ) {
     const tenant = await this.tenantsService.findOne({ id: tenantId });
 
     // Find gateways and nodes with type
-    const gateways = await this.gatewaysService.findAll({ where: { type } });
-    const nodes = await this.nodesService.findAll({ where: { type } });
+    const gateways = await this.gatewaysService.findAll({
+      where: type ? { type, tenantId: tenant.id } : { tenantId: tenant.id },
+    });
+    const nodes = await this.nodesService.findAll({
+      where: type ? { type, tenantId: tenant.id } : { tenantId: tenant.id },
+    });
 
     const flux = `
+    import "timezone"
+
     a = from(bucket: "${tenant.name}")
     |> range(start: ${startTime}, stop: ${endTime})
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
     |> filter(fn: (r) => r["_field"] == "uptime")
+    |> window(every: 1d, location : timezone.location(name: "${timezone}"))
     |> difference()
     |> filter(fn: (r) => r["_value"] > 0)
     |> sum()
@@ -510,42 +518,32 @@ export class TelemetryService {
     |> range(start: ${startTime}, stop: ${endTime})
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
     |> filter(fn: (r) => r["_field"] == "uptime")
+    |> window(every: 1d, location : timezone.location(name: "${timezone}"))
     |> count()
     |> map(fn: (r) => ({ r with _field: "count" }))
 
     union(tables: [a, b])
+    |> pivot(rowKey: ["_start", "device"], columnKey: ["_field"], valueColumn: "_value")
+    |> keep(columns: ["_start", "_stop", "count", "device", "duration"])
     `;
 
     const result = await this.queryApi.collectRows(flux);
-
     const gatewaysResult = gateways.map((gateway) => {
-      const count = result.find(
-        (data: any) =>
-          data._field === 'count' && data.device === gateway.serialNumber,
-      ) as any;
-      const duration = result.find(
-        (data: any) =>
-          data._field === 'duration' && data.device === gateway.serialNumber,
+      const report = result.filter(
+        (data: any) => data.device === gateway.serialNumber,
       ) as any;
       return {
         ...gateway,
-        count: count?._value || 0,
-        duration: duration?._value || 0,
+        report,
       };
     });
     const nodesResult = nodes.map((node) => {
-      const count = result.find(
-        (data: any) =>
-          data._field === 'count' && data.device === node.serialNumber,
-      ) as any;
-      const duration = result.find(
-        (data: any) =>
-          data._field === 'duration' && data.device === node.serialNumber,
+      const report = result.filter(
+        (data: any) => data.device === node.serialNumber,
       ) as any;
       return {
         ...node,
-        count: count?._value || 0,
-        duration: duration?._value || 0,
+        report,
       };
     });
     return {
@@ -599,6 +597,7 @@ export class TelemetryService {
 
     union(tables: [a, b])
     |> pivot(rowKey: ["_start"], columnKey: ["_field"], valueColumn: "_value")
+    |> keep(columns: ["_start", "_stop", "count", "device", "duration"])
     `;
 
     const result = await this.queryApi.collectRows(flux);
