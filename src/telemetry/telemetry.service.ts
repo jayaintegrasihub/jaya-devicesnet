@@ -553,4 +553,62 @@ export class TelemetryService {
       nodes: nodesResult,
     };
   }
+
+  async reportComplitenessBySerialNumber(
+    serialNumber: string,
+    startTime: string,
+    endTime: string,
+    timezone: string,
+  ) {
+    const [gatewayResult, nodeResult] = await Promise.allSettled([
+      this.gatewaysService.findOneWithSerialNumber({ serialNumber }),
+      this.nodesService.findOneWithSerialNumber({ serialNumber }),
+    ]);
+    const device =
+      gatewayResult.status === 'fulfilled'
+        ? gatewayResult.value
+        : nodeResult.status === 'fulfilled'
+          ? nodeResult.value
+          : null;
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+    const flux = `
+    import "timezone"
+
+    a = from(bucket: "${device.tenant?.name}")
+    |> range(start: ${startTime}, stop: ${endTime})
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
+    |> filter(fn: (r) => r["_field"] == "uptime")
+    |> window(every: 1d, location : timezone.location(name: "${timezone}"))
+    |> difference()
+    |> filter(fn: (r) => r["_value"] > 0)
+    |> sum()
+    |> map(fn: (r) => ({ r with _field: "duration" }))
+
+    b = from(bucket: "${device.tenant?.name}")
+    |> range(start: ${startTime}, stop: ${endTime})
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
+    |> filter(fn: (r) => r["_field"] == "uptime")
+    |> window(every: 1d, location : timezone.location(name: "${timezone}"))
+    |> count()
+    |> map(fn: (r) => ({ r with _field: "count" }))
+
+    union(tables: [a, b])
+    |> pivot(rowKey: ["_start"], columnKey: ["_field"], valueColumn: "_value")
+    `;
+
+    const result = await this.queryApi.collectRows(flux);
+    const report = result.filter(
+      (data: any) => data.device === device.serialNumber,
+    ) as any;
+
+    return {
+      ...device,
+      report,
+    };
+  }
 }

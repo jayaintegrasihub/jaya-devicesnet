@@ -334,4 +334,26 @@ export class TelemetryController {
       data: { report },
     };
   }
+
+  @Get('/report-completeness/:serialNumber')
+  @RequestLogs('getCompletenessTelemetrybySerialNumber')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async reportCompletenessBySerialNumber(
+    @Query() query: any,
+    @Param('serialNumber') serialNumber: string,
+  ) {
+    const { startTime, endTime, timezone } = query;
+    const completenessDevice =
+      await this.telemetryService.reportComplitenessBySerialNumber(
+        serialNumber,
+        startTime,
+        endTime,
+        timezone,
+      );
+    return {
+      status: 'success',
+      data: { completenessDevice },
+    };
+  }
 }
