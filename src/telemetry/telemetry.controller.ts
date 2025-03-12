@@ -15,6 +15,7 @@ import {
   Body,
   Inject,
   InternalServerErrorException,
+  Res,
 } from '@nestjs/common';
 import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
@@ -25,6 +26,9 @@ import { CombinedGuard } from 'src/api-keys/guards/combined.guard';
 import { CommandPayloadDto } from './dto/command.dto';
 import { MQTT_CLIENT_INSTANCE } from 'src/mqtt/mqtt.constant';
 import { MqttClient } from '@nestjs/microservices/external/mqtt-client.interface';
+import { Column } from 'exceljs';
+import { ExcelService } from 'src/utils/excel/excel.service';
+import { Response } from 'express';
 
 @Controller('telemetry')
 @UsePipes(ZodValidationPipe)
@@ -33,6 +37,7 @@ export class TelemetryController {
   constructor(
     private telemetryService: TelemetryService,
     @Inject(MQTT_CLIENT_INSTANCE) private mqtt: MqttClient,
+    private excelService: ExcelService,
   ) {}
 
   @Get('/last/:device')
@@ -357,5 +362,106 @@ export class TelemetryController {
       status: 'success',
       data: { completenessDevice },
     };
+  }
+
+  @Get('export/report-completeness')
+  @RequestLogs('exportCompleteness')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async exportReportCompleteness(@Query() query: any, @Res() res: Response) {
+    const { tenantId, type, startTime, endTime, timezone } = query;
+    const reports = await this.telemetryService.reportCompliteness(
+      tenantId,
+      type,
+      startTime,
+      endTime,
+      timezone,
+    );
+
+    const gatewaysReport = reports.gateways
+      .map((gateway) => {
+        const alias = gateway.alias;
+        return gateway.report.map((r: any) => ({ alias, ...r }));
+      })
+      .flat();
+    const nodesReport = reports.nodes
+      .map((node) => {
+        const alias = node.alias;
+        return node.report.map((r: any) => ({ alias, ...r }));
+      })
+      .flat();
+    const deviceReport = gatewaysReport.concat(nodesReport);
+
+    const columns: Partial<Column>[] = [
+      { header: 'alias', key: 'alias', width: 10 },
+      { header: 'time', key: '_start', width: 10 },
+      { header: 'device', key: 'device', width: 10 },
+      { header: 'count', key: 'count', width: 10 },
+      { header: 'duration', key: 'duration', width: 10 },
+    ];
+
+    const buffer = await this.excelService.generateExcel(
+      'Report',
+      columns,
+      deviceReport,
+      timezone,
+    );
+
+    const filename = new Date().toISOString() + '_Report_Compliteness.xlsx';
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.send(buffer);
+  }
+
+  @Get('export/report-completeness/:serialNumber')
+  @RequestLogs('exportCompleteness')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async exportCompletenessBySerialNumber(
+    @Query() query: any,
+    @Param('serialNumber') serialNumber: string,
+    @Res() res: Response,
+  ) {
+    const { startTime, endTime, timezone } = query;
+    const result = await this.telemetryService.reportComplitenessBySerialNumber(
+      serialNumber,
+      startTime,
+      endTime,
+      timezone,
+    );
+    const alias = result.alias;
+    const reports = result.report.map((x: any) => ({
+      alias,
+      ...x,
+    }));
+
+    const columns: Partial<Column>[] = [
+      { header: 'alias', key: 'alias', width: 10 },
+      { header: 'time', key: '_start', width: 10 },
+      { header: 'device', key: 'device', width: 10 },
+      { header: 'count', key: 'count', width: 10 },
+      { header: 'duration', key: 'duration', width: 10 },
+    ];
+
+    const buffer = await this.excelService.generateExcel(
+      'Report',
+      columns,
+      reports,
+      timezone,
+    );
+
+    const filename =
+      new Date().toISOString() + '_Report_Compliteness_By_SerialNumber.xlsx';
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.send(buffer);
   }
 }

@@ -13,6 +13,7 @@ import { ConfigType } from '@nestjs/config';
 import mqttConfiguration from '../config/mqtt.config';
 import { MqttModule } from 'src/mqtt/mqtt.module';
 import { TelemetryMqttPublisher } from 'src/mqtt/telemetry/telemetry.mqtt-publisher';
+import { ExcelService } from 'src/utils/excel/excel.service';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TelemetryMqttPublisher } from 'src/mqtt/telemetry/telemetry.mqtt-publis
     AccessTokenGuard,
     ApiKeysGuard,
     TelemetryMqttPublisher,
+    ExcelService,
   ],
 })
 export class TelemetryModule {}
