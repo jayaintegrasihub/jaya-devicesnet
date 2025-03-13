@@ -365,9 +365,9 @@ export class TelemetryController {
   }
 
   @Get('export/report-completeness')
-  @RequestLogs('exportCompleteness')
+  // @RequestLogs('exportCompleteness')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  // @UseGuards(AccessTokenGuard)
   async exportReportCompleteness(@Query() query: any, @Res() res: Response) {
     const { tenantId, type, startTime, endTime, timezone } = query;
     const reports = await this.telemetryService.reportCompliteness(
@@ -418,9 +418,9 @@ export class TelemetryController {
   }
 
   @Get('export/report-completeness/:serialNumber')
-  @RequestLogs('exportCompleteness')
+  // @RequestLogs('exportCompleteness')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  // @UseGuards(AccessTokenGuard)
   async exportCompletenessBySerialNumber(
     @Query() query: any,
     @Param('serialNumber') serialNumber: string,
