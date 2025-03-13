@@ -381,13 +381,23 @@ export class TelemetryController {
     const gatewaysReport = reports.gateways
       .map((gateway) => {
         const alias = gateway.alias;
-        return gateway.report.map((r: any) => ({ alias, ...r }));
+        return gateway.report.map((r: any) => ({
+          alias,
+          expectedDataCount: Math.round(r.duration / 10),
+          percentage: ((r.count / (r.duration / 10)) * 100).toFixed(1),
+          ...r,
+        }));
       })
       .flat();
     const nodesReport = reports.nodes
       .map((node) => {
         const alias = node.alias;
-        return node.report.map((r: any) => ({ alias, ...r }));
+        return node.report.map((r: any) => ({
+          alias,
+          expectedDataCount: Math.round(r.duration / 10),
+          percentage: ((r.count / (r.duration / 10)) * 100).toFixed(1),
+          ...r,
+        }));
       })
       .flat();
     const deviceReport = gatewaysReport.concat(nodesReport);
@@ -398,6 +408,8 @@ export class TelemetryController {
       { header: 'device', key: 'device', width: 10 },
       { header: 'count', key: 'count', width: 10 },
       { header: 'duration', key: 'duration', width: 10 },
+      { header: 'expected data count', key: 'expectedDataCount', width: 10 },
+      { header: 'percentage', key: 'percentage', width: 10 },
     ];
 
     const buffer = await this.excelService.generateExcel(
@@ -436,6 +448,8 @@ export class TelemetryController {
     const alias = result.alias;
     const reports = result.report.map((x: any) => ({
       alias,
+      expectedDataCount: Math.round(x.duration / 10),
+      percentage: ((x.count / (x.duration / 10)) * 100).toFixed(1),
       ...x,
     }));
 
@@ -445,6 +459,8 @@ export class TelemetryController {
       { header: 'device', key: 'device', width: 10 },
       { header: 'count', key: 'count', width: 10 },
       { header: 'duration', key: 'duration', width: 10 },
+      { header: 'expected data count', key: 'expectedDataCount', width: 10 },
+      { header: 'percentage', key: 'percentage', width: 10 },
     ];
 
     const buffer = await this.excelService.generateExcel(
