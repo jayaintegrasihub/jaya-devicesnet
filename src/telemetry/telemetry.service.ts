@@ -484,7 +484,7 @@ export class TelemetryService {
     return await this.queryApi.collectRows(flux);
   }
 
-  async reportCompliteness(
+  async reportCompleteness(
     tenantId: string,
     type: string,
     startTime: string,
@@ -552,7 +552,7 @@ export class TelemetryService {
     };
   }
 
-  async reportComplitenessBySerialNumber(
+  async reportCompletenessBySerialNumber(
     serialNumber: string,
     startTime: string,
     endTime: string,

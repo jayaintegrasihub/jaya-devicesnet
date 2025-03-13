@@ -329,7 +329,7 @@ export class TelemetryController {
   async reportCompleteness(@Query() query: any) {
     const { tenantId, type, startTime, endTime, timezone } = query;
 
-    const report = await this.telemetryService.reportCompliteness(
+    const report = await this.telemetryService.reportCompleteness(
       tenantId,
       type,
       startTime,
@@ -352,7 +352,7 @@ export class TelemetryController {
   ) {
     const { startTime, endTime, timezone } = query;
     const completenessDevice =
-      await this.telemetryService.reportComplitenessBySerialNumber(
+      await this.telemetryService.reportCompletenessBySerialNumber(
         serialNumber,
         startTime,
         endTime,
@@ -370,7 +370,7 @@ export class TelemetryController {
   // @UseGuards(AccessTokenGuard)
   async exportReportCompleteness(@Query() query: any, @Res() res: Response) {
     const { tenantId, type, startTime, endTime, timezone } = query;
-    const reports = await this.telemetryService.reportCompliteness(
+    const reports = await this.telemetryService.reportCompleteness(
       tenantId,
       type,
       startTime,
@@ -407,7 +407,7 @@ export class TelemetryController {
       timezone,
     );
 
-    const filename = new Date().toISOString() + '_Report_Compliteness.xlsx';
+    const filename = new Date().toISOString() + '_Report_Completeness.xlsx';
 
     res.setHeader(
       'Content-Type',
@@ -427,7 +427,7 @@ export class TelemetryController {
     @Res() res: Response,
   ) {
     const { startTime, endTime, timezone } = query;
-    const result = await this.telemetryService.reportComplitenessBySerialNumber(
+    const result = await this.telemetryService.reportCompletenessBySerialNumber(
       serialNumber,
       startTime,
       endTime,
@@ -455,7 +455,7 @@ export class TelemetryController {
     );
 
     const filename =
-      new Date().toISOString() + '_Report_Compliteness_By_SerialNumber.xlsx';
+      new Date().toISOString() + '_Report_Completeness_By_SerialNumber.xlsx';
 
     res.setHeader(
       'Content-Type',
