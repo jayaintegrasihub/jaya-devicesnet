@@ -641,19 +641,21 @@ export class TelemetryService {
       |> filter(fn: (r) => ${filterFields})
       |> drop(columns: ["_start", "_stop"])`;
 
-    const resultQuery = await this.queryApi.collectRows(fluxQuery);
-    const groupedData = resultQuery.reduce((acc: any, item: any) => {
-      const { device, _field, table, result, ...rest } = item;
+    const resultQuery = (await this.queryApi.collectRows(fluxQuery)) as any;
+    const groupedData = Object.values(
+      resultQuery.reduce((acc, item) => {
+        const { device, _field, table, result, ...rest } = item;
 
-      if (!acc[device]) {
-        acc[device] = {};
-      }
-      if (!acc[device][_field]) {
-        acc[device][_field] = [];
-      }
-      acc[device][_field].push(rest);
-      return acc;
-    }, {});
+        if (!acc[device]) {
+          acc[device] = { device, historyData: {} };
+        }
+        if (!acc[device].historyData[_field]) {
+          acc[device].historyData[_field] = [];
+        }
+        acc[device].historyData[_field].push(rest);
+        return acc;
+      }, {}),
+    );
 
     return groupedData;
   }
