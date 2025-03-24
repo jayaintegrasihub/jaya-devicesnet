@@ -659,4 +659,102 @@ export class TelemetryService {
 
     return groupedData;
   }
+
+  async statusTelemetryDevice(tenantName: string, type: string) {
+    const tenant = await this.tenantsService.findOne({
+      name: tenantName,
+    });
+    const [nodes, gateways] = await Promise.all([
+      this.nodesService.findAll({
+        where: { tenantId: tenant?.id, AND: { type } },
+      }),
+      this.gatewaysService.findAll({
+        where: { tenantId: tenant?.id, AND: { type } },
+      }),
+    ]);
+
+    const devices = [...nodes, ...gateways];
+    if (devices.length === 0) {
+      return {
+        nodes: [],
+        gateways: [],
+        timeNow: Date.now(),
+      };
+    }
+
+    const filterDevices = devices.map((d) => d.serialNumber).join('|');
+
+    const devicefluxQuery = `from(bucket: "${tenant.name}")
+    |> range(start: 0)
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["device"] =~ /${filterDevices}/)
+    |> last()
+    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+    |> group(columns: ["device"])
+    |> sort(columns: ["_time"], desc: false) 
+    |> last(column: "device")
+    |> drop(columns: ["_start", "_stop"])`;
+
+    const telemetryFlux = `from(bucket: "${tenant.name}")
+    |> range(start: 0)
+    |> filter(fn: (r) => r["_measurement"] == "${type}")
+    |> filter(fn: (r) => r["device"] =~ /${filterDevices}/)
+    |> last()
+    |> group(columns: ["device","_field"], mode:"by")  
+    |> sort(columns: ["_time"], desc: false)
+    |> last()
+    |> drop(columns: ["_start", "_stop"])`;
+
+    const [deviceHealthData, telemetryData] = await Promise.all([
+      this.queryApi.collectRows(devicefluxQuery),
+      this.queryApi.collectRows(telemetryFlux),
+    ]);
+
+    const timeNow = Date.now();
+
+    const calculateDataOnline = (
+      data: Array<any>,
+      devices: {
+        alias: string;
+        serialNumber: string;
+        id: string;
+        telemetry?: any;
+      }[],
+    ) => {
+      return devices
+        .map((device) => {
+          const { _measurement, result, table, ...rest } = data.find(
+            (x) => x.device === device.serialNumber,
+          );
+          if (!rest) return;
+
+          const diff =
+            (timeNow - new Date(rest._time as string).getTime()) / 1000;
+          return {
+            ...rest,
+            status: diff < 60 ? 'ONLINE' : 'OFFLINE',
+            alias: device.alias,
+            id: device.id,
+            telemetry: device.telemetry,
+          };
+        })
+        .filter(Boolean);
+    };
+
+    const dataNodes = nodes.map((node) => {
+      const telemetry = telemetryData
+        .filter((x: any) => x.device === node.serialNumber)
+        .reduce((acc: any, { _field, table, result, device, ...rest }) => {
+          acc[_field] = rest;
+          return acc;
+        }, {});
+      return { telemetry, ...node };
+    });
+
+    return {
+      nodes: calculateDataOnline(deviceHealthData, dataNodes),
+      gateways: calculateDataOnline(deviceHealthData, gateways),
+      timeNow,
+    };
+  }
 }

@@ -140,6 +140,31 @@ export class TelemetryController {
     );
   }
 
+  @Sse('/status-telemetry-device/sse/:tenant')
+  @RequestLogs('getStatusDeviceTelemetrySse')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiKeysGuard)
+  statusTelemetryDeviceSse(
+    @Param('tenant') tenant: string,
+    @Query('type') type: string,
+  ): Observable<MessageEvent> {
+    return interval(10000).pipe(
+      startWith(0),
+      switchMap(() =>
+        from(this.telemetryService.statusTelemetryDevice(tenant, type)),
+      ),
+      map(
+        (statusDevices) =>
+          ({
+            data: {
+              status: 'success',
+              data: { statusDevices },
+            },
+          }) as MessageEvent,
+      ),
+    );
+  }
+
   @Get('/access-token/status-device/:tenant')
   @RequestLogs('getStatusDeviceTelemetry')
   @HttpCode(HttpStatus.OK)
