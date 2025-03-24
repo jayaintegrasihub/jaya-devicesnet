@@ -610,4 +610,51 @@ export class TelemetryService {
       report,
     };
   }
+
+  async findHistoryDevices(query: any) {
+    const {
+      fields,
+      startTime,
+      endTime,
+      type,
+      tenantName,
+    }: {
+      fields: string;
+      startTime: string;
+      endTime: string;
+      type: string;
+      tenantName: string;
+    } = query;
+
+    const filterFields = fields
+      .split(',')
+      .map((x) => `r["_field"] == "${x}"`)
+      .join(' or ');
+
+    const tenant = await this.tenantsService.findOne({
+      name: tenantName,
+    });
+    const fluxQuery = `
+      from(bucket: "${tenant.name}")
+      |> range(start: ${startTime}, stop: ${endTime})
+      |> filter(fn: (r) => r["_measurement"] == "${type}")
+      |> filter(fn: (r) => ${filterFields})
+      |> drop(columns: ["_start", "_stop"])`;
+
+    const resultQuery = await this.queryApi.collectRows(fluxQuery);
+    const groupedData = resultQuery.reduce((acc: any, item: any) => {
+      const { device, _field, table, result, ...rest } = item;
+
+      if (!acc[device]) {
+        acc[device] = {};
+      }
+      if (!acc[device][_field]) {
+        acc[device][_field] = [];
+      }
+      acc[device][_field].push(rest);
+      return acc;
+    }, {});
+
+    return groupedData;
+  }
 }

@@ -87,6 +87,18 @@ export class TelemetryController {
     };
   }
 
+  @Get('/history-devices')
+  @RequestLogs('getHistoryTelemetry')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CombinedGuard)
+  async findHistoryDevices(@Query() query: any) {
+    const telemetries = await this.telemetryService.findHistoryDevices(query);
+    return {
+      status: 'success',
+      data: { telemetries },
+    };
+  }
+
   @Get('/status-device/:tenant')
   @RequestLogs('getStatusDeviceTelemetry')
   @HttpCode(HttpStatus.OK)
