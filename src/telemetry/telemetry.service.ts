@@ -505,9 +505,7 @@ export class TelemetryService {
       .map((gateway) => gateway.serialNumber)
       .concat(nodes.map((node) => node.serialNumber));
 
-    const filterDevices = devices
-      .map((device) => `r["device"] == "${device}"`)
-      .join(' or ');
+    const filterDevices = devices.join('|');
 
     if (filterDevices.length === 0)
       throw new NotFoundException('Device not found');
@@ -518,7 +516,7 @@ export class TelemetryService {
     a = from(bucket: "${tenant.name}")
     |> range(start: ${startTime}, stop: ${endTime})
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
-    |> filter(fn: (r) => ${filterDevices})
+    |> filter(fn: (r) => r["device"] =~ /${filterDevices}/)
     |> filter(fn: (r) => r["_field"] == "uptime")
     |> window(every: 1d, location : timezone.location(name: "${timezone}"))
     |> difference()
@@ -529,7 +527,7 @@ export class TelemetryService {
     b = from(bucket: "${tenant.name}")
     |> range(start: ${startTime}, stop: ${endTime})
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
-    |> filter(fn: (r) => ${filterDevices})
+    |> filter(fn: (r) => r["device"] =~ /${filterDevices}/)
     |> filter(fn: (r) => r["_field"] == "uptime")
     |> window(every: 1d, location : timezone.location(name: "${timezone}"))
     |> count()
