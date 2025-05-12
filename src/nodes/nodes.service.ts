@@ -79,7 +79,7 @@ export class NodesService {
       await this.cacheManager.set(
         `node/${node.serialNumber}`,
         JSON.stringify(node),
-        0,
+        10000,
       );
       return new NodesEntity(node);
     }
