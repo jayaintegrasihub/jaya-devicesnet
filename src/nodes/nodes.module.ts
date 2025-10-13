@@ -5,6 +5,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { InfluxdbClientModule } from 'src/influxdb/influxdb.module';
 import { RedisModule } from 'src/redis/redis.module';
+import { ApiKeysModule } from 'src/api-keys/api-keys.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { RedisModule } from 'src/redis/redis.module';
     CacheModule.register(),
     InfluxdbClientModule,
     RedisModule,
+    ApiKeysModule,
   ],
   controllers: [NodesController],
   providers: [NodesService],

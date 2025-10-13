@@ -5,14 +5,25 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { NodesEntity } from './entity/node.entity';
 import { REDIS } from 'src/redis/redis.constant';
 import Redis from 'ioredis';
+import { INFLUXDB_CLIENT } from 'src/influxdb/influxdb.constant';
+import { InfluxDB, QueryApi } from '@influxdata/influxdb-client';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class NodesService {
+  private queryApi: QueryApi;
+
   constructor(
     private prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     @Inject(REDIS) private redis: Redis,
-  ) {}
+    @Inject(INFLUXDB_CLIENT) private influx: InfluxDB,
+    private configService: ConfigService,
+  ) {
+    const org = this.configService.get('INFLUXDB_ORG_ID');
+    const queryApi = this.influx.getQueryApi(org);
+    this.queryApi = queryApi;
+  }
 
   findAll(params: {
     skip?: number;
@@ -83,5 +94,27 @@ export class NodesService {
       );
       return new NodesEntity(node);
     }
+  }
+
+  async findByAlias(alias: string) {
+    const node = await this.prisma.nodes.findFirstOrThrow({
+      where: { alias },
+      include: {
+        tenant: { select: { id: true, name: true } },
+      },
+    });
+
+    const fluxQuery = `
+    from(bucket: "${node.tenant?.name}")
+    |> range(start: -400d)
+    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
+    |> filter(fn: (r) => r["device"] == "${node.serialNumber}")
+    |> last(column : "_time")
+    |> keep(columns: ["gateway", "_time"])`;
+    const nodeInflux = (await this.queryApi.collectRows(fluxQuery)).map(
+      ({ result, table, ...value }) => value,
+    );
+
+    return { ...node, meta: nodeInflux[0] || {} };
   }
 }

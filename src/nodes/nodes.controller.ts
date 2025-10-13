@@ -22,6 +22,7 @@ import { UpdateNodeDto } from './dto/update-node.dto';
 import { ZodValidationPipe } from '@anatine/zod-nestjs';
 import { Prisma } from '@prisma/client';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
+import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 
 @Controller('nodes')
 @UsePipes(ZodValidationPipe)
@@ -39,6 +40,18 @@ export class NodesController {
     return {
       status: 'success',
       data: { nodes: nodesEntity },
+    };
+  }
+
+  @Get('/alias/:alias')
+  // @RequestLogs('getAllNodes')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiKeysGuard)
+  async findByAlias(@Param('alias') alias: string) {
+    const node = await this.nodesService.findByAlias(alias);
+    return {
+      status: 'success',
+      data: { node },
     };
   }
 
