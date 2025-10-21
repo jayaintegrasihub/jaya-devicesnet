@@ -4,8 +4,6 @@
 name: jaya Devicesnet Deployment
 
 on:
-  release::
-    types: [published]
   push:
     tags:
       - 'v*.*.*'
