@@ -32,7 +32,7 @@ jobs:
             sigitnurmajid/jaya-devicesnet
           tags: |
             type=semver,pattern=latest
-            type=semver,pattern={{version}}
+            type=semver,pattern={{version}}-main
       
       - name: Build and push Docker image
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
@@ -58,10 +58,10 @@ jobs:
         port: ${{ secrets.SSH_PORT }}
         script: |
           sudo echo "${{ secrets.ENV_FILE_PRODUCTION }}" > .env.jaya-devicenet
-          sudo docker stop jaya-devicesnet
-          sudo docker rm jaya-devicesnet
+          sudo docker stop jaya-devicesnet || echo "container not running"
+          sudo docker rm jaya-devicesnet || true
 
-          sudo docker rmi sigitnurmajid/jaya-devicesnet:main
-          sudo docker pull sigitnurmajid/jaya-devicesnet:main
+          sudo docker rmi sigitnurmajid/jaya-devicesnet:latest || true
+          sudo docker pull sigitnurmajid/jaya-devicesnet:latest || true
 
-          sudo docker run -t -d -p 3000:3000 --network host --env-file .env.jaya-devicenet --name jaya-devicesnet --restart always sigitnurmajid/jaya-devicesnet:main
+          sudo docker run -t -d -p 3000:3000 --network host --env-file .env.jaya-devicenet --name jaya-devicesnet --restart always sigitnurmajid/jaya-devicesnet:latest
