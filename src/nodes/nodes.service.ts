@@ -49,7 +49,7 @@ export class NodesService {
 
   async create(data: Prisma.NodesCreateInput) {
     const node = await this.prisma.nodes.create({ data });
-    await this.cacheManager.del(`node/${node.serialNumber!}`);
+    await this.cacheManager.del(`node/${node.serialNumber}`);
     return node;
   }
 
@@ -60,7 +60,7 @@ export class NodesService {
     const node = await this.prisma.nodes.update(params);
     // this redis delete for logic jaya-transport-service
     await this.redis.del(`device/${node.serialNumber}`);
-    await this.cacheManager.del(`node/${node.serialNumber!}`);
+    await this.cacheManager.del(`node/${node.serialNumber}`);
     return node;
   }
 
@@ -69,6 +69,7 @@ export class NodesService {
 
     // this redis delete for logic jaya-transport-service
     await this.redis.del(`device/${node.serialNumber}`);
+    await this.cacheManager.del(`node/${node.serialNumber}`);
     return this.prisma.nodes.delete({ where });
   }
 
