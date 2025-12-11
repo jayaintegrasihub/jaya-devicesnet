@@ -22,6 +22,9 @@ import { CreateApiKeysDto } from './dto/create-api-keys.dto';
 import { UpdateApiKeysDto } from './dto/update-api-keys.dto';
 import { ApiKeysEntity } from './entity/api-keys-entity';
 import { ApiKeysGuard } from './guards/api-keys.guard';
+import { RoleGuard } from 'src/role/guards/role.guard';
+import { Role } from 'src/enums/role.enum';
+import { Roles } from 'src/role/decorator/roles.decorator';
 
 @Controller('api-keys')
 @UsePipes(ZodValidationPipe)
@@ -32,7 +35,8 @@ export class ApiKeysController {
   @Get('/')
   @RequestLogs('getAllApiKeys')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findAll(@Query() params: any) {
     const apikeys = await this.apiKeysService.findAll({ where: params });
     const apiKeysEntity = apikeys.map(
@@ -48,7 +52,8 @@ export class ApiKeysController {
   @Get('/:id')
   @RequestLogs('getApiKey')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findOne(@Param('id') id: string) {
     const apiKey = await this.apiKeysService.findOne({ id });
     const apiKeyEntity = new ApiKeysEntity(apiKey);
@@ -61,7 +66,8 @@ export class ApiKeysController {
   @Post('/')
   @RequestLogs('postApiKeys')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async create(@Body() data: CreateApiKeysDto) {
     const expiresIn = this.apiKeysService.convertDatesTotDaysFormat(
       new Date(data.expiresAt),
@@ -90,7 +96,8 @@ export class ApiKeysController {
   @Patch('/:id')
   @RequestLogs('patchApiKeys')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async update(@Param('id') id: string, @Body() data: UpdateApiKeysDto) {
     const apikeys = await this.apiKeysService.update({
       where: { id },
@@ -106,7 +113,8 @@ export class ApiKeysController {
   @Delete('/:id')
   @RequestLogs('deleteApiKeys')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async delete(@Param('id') id: string) {
     await this.apiKeysService.delete({ id });
     return {

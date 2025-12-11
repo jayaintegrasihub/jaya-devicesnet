@@ -22,6 +22,9 @@ import { CreateGatewayDto } from './dto/create-gateway.dto';
 import { UpdateGatewayDto } from './dto/update-gateway.dto';
 import { Prisma } from '@prisma/client';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
+import { RoleGuard } from 'src/role/guards/role.guard';
+import { Role } from 'src/enums/role.enum';
+import { Roles } from 'src/role/decorator/roles.decorator';
 
 @Controller('gateways')
 @UsePipes(ZodValidationPipe)
@@ -32,7 +35,8 @@ export class GatewaysController {
   @Get('/')
   @RequestLogs('getAllGateways')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findAll(@Query() params: any) {
     const gateways = await this.gatewaysService.findAll({ where: params });
     const gatewaysEntity = gateways.map(
@@ -47,7 +51,8 @@ export class GatewaysController {
   @Get('/:id')
   @RequestLogs('getGateway')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findOne(@Param('id') id: string) {
     const gateway = await this.gatewaysService.findOne(id);
     const gatewaysEntity = new GatewaysEntity(gateway);
@@ -60,7 +65,8 @@ export class GatewaysController {
   @Post('/')
   @RequestLogs('postGateway')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async create(@Body() data: CreateGatewayDto) {
     const gateway = await this.gatewaysService.create(
       data as Prisma.GatewaysCreateInput,
@@ -75,7 +81,8 @@ export class GatewaysController {
   @Patch('/:id')
   @RequestLogs('patchGateway')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async update(@Param('id') id: string, @Body() data: UpdateGatewayDto) {
     const gateway = await this.gatewaysService.update({
       where: { id },
@@ -91,7 +98,8 @@ export class GatewaysController {
   @Delete('/:id')
   @RequestLogs('deleteGateway')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async delete(@Param('id') id: string) {
     await this.gatewaysService.delete({ id });
     return {
@@ -103,7 +111,8 @@ export class GatewaysController {
   @Get('/find-node/:id')
   @RequestLogs('findNode')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findNode(@Param('id') id: string) {
     const nodes = await this.gatewaysService.findNode(id);
     return {
