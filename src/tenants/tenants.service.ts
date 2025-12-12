@@ -1,6 +1,7 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { Role } from 'src/enums/role.enum';
 import { InfluxdbClientApisService } from 'src/influxdb/influxdb-client-apis.service';
 import { INFLUXDB_CLIENT_APIS } from 'src/influxdb/influxdb.constant';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -18,14 +19,51 @@ export class TenantsService {
     this.influxApi = influxApi;
   }
 
-  findAll(params: {
-    skip?: number;
-    take?: number;
-    cursor?: Prisma.TenantsWhereUniqueInput;
-    where?: Prisma.TenantsWhereInput;
-    orderBy?: Prisma.TenantsOrderByWithRelationInput;
-  }) {
-    return this.prisma.tenants.findMany(params);
+  // findAll(params: {
+  //   skip?: number;
+  //   take?: number;
+  //   cursor?: Prisma.TenantsWhereUniqueInput;
+  //   where?: Prisma.TenantsWhereInput;
+  //   orderBy?: Prisma.TenantsOrderByWithRelationInput;
+  // }) {
+  //   return this.prisma.tenants.findMany(params);
+  // }
+
+  async findAll(
+    params: {
+      skip?: number;
+      take?: number;
+      cursor?: Prisma.TenantsWhereUniqueInput;
+      where?: Prisma.TenantsWhereInput;
+      orderBy?: Prisma.TenantsOrderByWithRelationInput;
+    },
+    req: any,
+  ) {
+    const { id: userId, role } = req.user;
+    
+    if (!userId) {
+      throw new NotFoundException('User not found in request');
+    }
+
+    if (role === Role.ADMIN) {
+      return this.prisma.tenants.findMany({ ...params });
+    }
+
+    const userTenants = await this.prisma.userTenants.findMany({
+      where: { userId },
+      select: { tenantId: true },
+    });
+    const tenantIds = userTenants.map((ut) => ut.tenantId);
+
+    const where = {
+      ...params.where,
+      id: { in: tenantIds },
+    };
+
+    return this.prisma.tenants.findMany({
+      ...params,
+      where,
+    });
   }
 
   findOne(where: Prisma.TenantsWhereUniqueInput) {

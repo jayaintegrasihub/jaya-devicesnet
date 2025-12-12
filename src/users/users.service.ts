@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { Prisma, Users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -24,9 +24,16 @@ export class UsersService {
       updatedData['password'] = bcrypt.hashSync(data.password as string, 10);
     }
 
+    if (data.tenant) {
+      updatedData.tenant = data.tenant;
+    }
+
     return this.prisma.users.update({
       data: updatedData,
       where,
+      include: {
+        tenant: true,
+      },
     });
   }
 
@@ -40,17 +47,37 @@ export class UsersService {
     return this.prisma.users.findMany({ ...params });
   }
 
-  create(data: Prisma.UsersCreateInput): Promise<Users> {
+  async create(data: Prisma.UsersCreateInput): Promise<Users> {
     const hashedPassword = bcrypt.hashSync(data.password, 10);
+
+    const userData: Prisma.UsersCreateInput = {
+      username: data.username,
+      email: data.email,
+      password: hashedPassword,
+      role: data.role || 'user',
+    };
+
+    if (data.tenant) {
+      userData.tenant = data.tenant;
+    }
+
     return this.prisma.users.create({
-      data: {
-        ...data,
-        password: hashedPassword,
+      data: userData,
+      include: {
+        tenant: true,
       },
     });
   }
 
-  delete(where: Prisma.UsersWhereUniqueInput): Promise<Users> {
+  delete(params: {
+    where: Prisma.UsersWhereUniqueInput;
+    req: any;
+  }): Promise<Users> {
+    const { where, req } = params;
+    const userId = req.user.id;
+    if (where.id === userId) {
+      throw new ForbiddenException('Users cannot delete themselves.');
+    }
     return this.prisma.users.delete({ where });
   }
 }

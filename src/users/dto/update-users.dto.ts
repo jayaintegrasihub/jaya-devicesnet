@@ -2,11 +2,8 @@ import { createZodDto } from '@anatine/zod-nestjs';
 import z from 'zod';
 
 const UpdateUsersZ = z.object({
-  username: z.string().optional(),
-  email: z.string().email().optional(),
   password: z.string().optional(),
-  role: z.string().optional(),
-  refreshToken: z.string().optional().nullable(),
+  tenantIds: z.array(z.string()).optional(),
 });
 
 export class UpdateUsersDto extends createZodDto(UpdateUsersZ) {}

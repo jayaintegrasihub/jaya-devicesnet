@@ -13,6 +13,7 @@ import {
   Body,
   Patch,
   Delete,
+  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
@@ -23,6 +24,7 @@ import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
 import { RoleGuard } from 'src/role/guards/role.guard';
 import { CreateUsersDto } from './dto/create-users.dto';
 import { UpdateUsersDto } from './dto/update-users.dto';
+import { Prisma } from '@prisma/client';
 
 @Controller('users')
 @UsePipes(ZodValidationPipe)
@@ -65,8 +67,23 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   @Roles(Role.ADMIN)
   @UseGuards(AccessTokenGuard, RoleGuard)
-  async create(@Body() createUserDto: CreateUsersDto) {
-    const user = this.usersService.create(createUserDto);
+  async create(@Body() createUsersDto: CreateUsersDto) {
+    const { tenantIds, ...userData } = createUsersDto;
+    
+    const createData: Prisma.UsersCreateInput = {
+      ...userData,
+      ...(tenantIds && tenantIds.length > 0 && {
+        tenant: {
+          create: tenantIds.map(tenantId => ({
+            tenant: {
+              connect: { id: tenantId }
+            }
+          }))
+        }
+      })
+    };
+    
+    const user = this.usersService.create(createData);
     const usersEntity = (({ password: _p, refreshToken: _r, ...user }) => user)(await user);
     return {
       status: 'success',
@@ -79,10 +96,26 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @Roles(Role.ADMIN)
   @UseGuards(AccessTokenGuard, RoleGuard)
-  async update(@Param('id') id: string, @Body() data: UpdateUsersDto) {
+  async update(@Param('id') id: string, @Body() updateUsersDto: UpdateUsersDto) {
+    const { tenantIds, ...userData } = updateUsersDto;
+
+    const updateData: Prisma.UsersUpdateInput = {
+      ...userData,
+      ...(tenantIds && {
+        tenant: {
+          deleteMany: {},
+          create: tenantIds.map(tenantId => ({
+            tenant: {
+              connect: { id: tenantId }
+            }
+          }))
+        }
+      })
+    };
+
     const user = await this.usersService.update({
       where: { id }, 
-      data
+      data: updateData
     });
     const usersEntity = (({ password: _p, refreshToken: _r, ...user }) => user)(user);
     return {
@@ -96,8 +129,8 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @Roles(Role.ADMIN)
   @UseGuards(AccessTokenGuard, RoleGuard)
-  async delete(@Param('id') id: string) {
-    await this.usersService.delete({ id });
+  async delete(@Param('id') id: string, @Request() req: any) {
+    await this.usersService.delete({ where: { id }, req });
     return {
       status: 'success',
       data: null,

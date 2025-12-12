@@ -6,7 +6,7 @@ const CreateUsersZ = z.object({
   email: z.string().email(),
   password: z.string(),
   role: z.string().optional(),
-  refreshToken: z.string().optional().nullable(),
+  tenantIds: z.array(z.string()).optional(),
 });
 
 export class CreateUsersDto extends createZodDto(CreateUsersZ) {}

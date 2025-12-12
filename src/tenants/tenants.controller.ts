@@ -10,6 +10,8 @@ import {
   Param,
   Patch,
   Post,
+  Query,
+  Request,
   UseGuards,
   UseInterceptors,
   UsePipes,
@@ -34,8 +36,8 @@ export class TenantsController {
   @RequestLogs('getAllTenants')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
-  async findAll() {
-    const tenants = await this.tenantsService.findAll({});
+  async findAll(@Query() params: any, @Request() req: any) {
+    const tenants = await this.tenantsService.findAll(params, req);
     const tenantsEntity = tenants.map((tenant) => new TenantsEntity(tenant));
 
     return {
