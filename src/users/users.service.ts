@@ -29,4 +29,28 @@ export class UsersService {
       where,
     });
   }
+
+  findAll(params: {
+    skip?: number;
+    take?: number;
+    cursor?: Prisma.UsersWhereUniqueInput;
+    where?: Prisma.UsersWhereInput;
+    orderBy?: Prisma.UsersOrderByWithRelationInput;
+  }): Promise<Users[]> {
+    return this.prisma.users.findMany({ ...params });
+  }
+
+  create(data: Prisma.UsersCreateInput): Promise<Users> {
+    const hashedPassword = bcrypt.hashSync(data.password, 10);
+    return this.prisma.users.create({
+      data: {
+        ...data,
+        password: hashedPassword,
+      },
+    });
+  }
+
+  delete(where: Prisma.UsersWhereUniqueInput): Promise<Users> {
+    return this.prisma.users.delete({ where });
+  }
 }
