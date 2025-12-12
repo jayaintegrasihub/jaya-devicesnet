@@ -34,8 +34,7 @@ export class TypesController {
   @Get('/')
   @RequestLogs('getAllTypes')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.ADMIN)
-  @UseGuards(AccessTokenGuard, RoleGuard)
+  @UseGuards(AccessTokenGuard)
   async findAll(@Query() params: any) {
     const types = await this.typesService.findAll({ where: params });
     const typesEntity = types.map(

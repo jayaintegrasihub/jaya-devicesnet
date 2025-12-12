@@ -36,8 +36,7 @@ export class NodesController {
   @Get('/')
   @RequestLogs('getAllNodes')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.ADMIN)
-  @UseGuards(AccessTokenGuard, RoleGuard)
+  @UseGuards(AccessTokenGuard)
   async findAll(@Query() params: any) {
     const nodes = await this.nodesService.findAll({ where: params });
     const nodesEntity = nodes.map((node) => new NodesEntity(node));

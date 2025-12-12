@@ -33,8 +33,7 @@ export class TenantsController {
   @Get('/')
   @RequestLogs('getAllTenants')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.ADMIN)
-  @UseGuards(AccessTokenGuard, RoleGuard)
+  @UseGuards(AccessTokenGuard)
   async findAll() {
     const tenants = await this.tenantsService.findAll({});
     const tenantsEntity = tenants.map((tenant) => new TenantsEntity(tenant));
