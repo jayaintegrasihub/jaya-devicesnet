@@ -23,6 +23,9 @@ import { ZodValidationPipe } from '@anatine/zod-nestjs';
 import { Prisma } from '@prisma/client';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
 import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
+import { RoleGuard } from 'src/role/guards/role.guard';
+import { Role } from 'src/enums/role.enum';
+import { Roles } from 'src/role/decorator/roles.decorator';
 
 @Controller('nodes')
 @UsePipes(ZodValidationPipe)
@@ -58,7 +61,8 @@ export class NodesController {
   @Get('/:id')
   @RequestLogs('getNode')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findOne(@Param('id') id: string) {
     const Node = await this.nodesService.findOne({ id });
     const NodeEntity = new NodesEntity(Node);
@@ -71,7 +75,8 @@ export class NodesController {
   @Post('/')
   @RequestLogs('postNode')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async create(@Body() data: CreateNodeDto) {
     const Node = await this.nodesService.create(
       data as Prisma.NodesCreateInput,
@@ -86,7 +91,8 @@ export class NodesController {
   @Patch('/:id')
   @RequestLogs('patchNode')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async update(@Param('id') id: string, @Body() data: UpdateNodeDto) {
     const node = await this.nodesService.update({
       where: { id },
@@ -102,7 +108,8 @@ export class NodesController {
   @Delete('/:id')
   @RequestLogs('deleteNode')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async delete(@Param('id') id: string) {
     await this.nodesService.delete({ id });
     return {

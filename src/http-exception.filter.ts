@@ -39,6 +39,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       res.data = errObj || { auth: 'Unauthorized' };
     }
 
+    if (status === 403) {
+      res.status = 'fail';
+      res.data = errObj || { auth: 'Forbidden' };
+    }
+
     if (status === 500) {
       res.status = 'error';
       const err = errObj as any;

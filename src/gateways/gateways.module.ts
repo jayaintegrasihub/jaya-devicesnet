@@ -5,6 +5,8 @@ import { AuthModule } from 'src/auth/auth.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { InfluxdbClientModule } from 'src/influxdb/influxdb.module';
 import { RedisModule } from 'src/redis/redis.module';
+import { AccessControlService } from 'src/shared/access-control.service';
+import { RoleGuard } from 'src/role/guards/role.guard';
 
 @Module({
   imports: [
@@ -14,7 +16,7 @@ import { RedisModule } from 'src/redis/redis.module';
     RedisModule,
   ],
   controllers: [GatewaysController],
-  providers: [GatewaysService],
+  providers: [GatewaysService, AccessControlService, RoleGuard],
   exports: [GatewaysService],
 })
 export class GatewaysModule {}

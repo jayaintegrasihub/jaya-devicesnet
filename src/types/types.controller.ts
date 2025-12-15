@@ -21,6 +21,9 @@ import { TypesEntity } from './entity/types.entity';
 import { CreateTypeDto } from './dto/create-type.dto';
 import { UpdateTypeDto } from './dto/update-type.dto';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
+import { RoleGuard } from 'src/role/guards/role.guard';
+import { Role } from 'src/enums/role.enum';
+import { Roles } from 'src/role/decorator/roles.decorator';
 
 @Controller('types')
 @UsePipes(ZodValidationPipe)
@@ -46,7 +49,8 @@ export class TypesController {
   @Get('/:id')
   @RequestLogs('getType')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findOne(@Param('id') id: string) {
     const type = await this.typesService.findOne({ id });
     const typeEntity = new TypesEntity(type);
@@ -59,7 +63,8 @@ export class TypesController {
   @Post('/')
   @RequestLogs('postType')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async create(@Body() data: CreateTypeDto) {
     const type = await this.typesService.create(data);
     const typeEntity = new TypesEntity(type);
@@ -72,7 +77,8 @@ export class TypesController {
   @Patch('/:id')
   @RequestLogs('patchType')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async update(@Param('id') id: string, @Body() data: UpdateTypeDto) {
     const type = await this.typesService.update({
       where: { id },
@@ -88,7 +94,8 @@ export class TypesController {
   @Delete('/:id')
   @RequestLogs('deleteType')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async delete(@Param('id') id: string) {
     await this.typesService.delete({ id });
     return {

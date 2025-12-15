@@ -19,7 +19,7 @@ export class AuthService {
   async signIn(username: string, password: string) {
     const user = await this.usersService.find({ username: username });
     if (bcrypt.compareSync(password, user.password)) {
-      const tokens = await this.generateToken(user.id, user.username);
+      const tokens = await this.generateToken(user.id, user.username, user.role);
       await this.updateRefreshToken(user.id, tokens.refreshToken);
       return { user, tokens };
     }
@@ -30,11 +30,11 @@ export class AuthService {
     });
   }
 
-  async generateToken(id: string, username: string) {
+  async generateToken(id: string, username: string, role: string) {
     // ref: https://github.com/nestjs/jwt/issues/1369
     const [accessToken, refreshToken] = await Promise.all([
-      this.signAccessToken({ id, username }),
-      this.signRefreshToken({ id, username }),
+      this.signAccessToken({ id, username, role }),
+      this.signRefreshToken({ id, username, role }),
     ]);
 
     return { accessToken, refreshToken };
@@ -56,14 +56,14 @@ export class AuthService {
     return this.configService.get('REFRESH_TOKEN_SECRET');
   }
 
-  signRefreshToken(data: { id: string; username: string }) {
+  signRefreshToken(data: { id: string; username: string, role: string }) {
     return this.jwtService.signAsync(data, {
       secret: this.getSecretRefreshToken(),
       expiresIn: this.configService.get('REFRESH_TOKEN_EXPIRATION'),
     });
   }
 
-  signAccessToken(data: { id: string; username: string }) {
+  signAccessToken(data: { id: string; username: string; role: string }) {
     return this.jwtService.signAsync(data, {
       secret: this.getSecretAccessToken(),
       expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRATION'),
@@ -81,7 +81,7 @@ export class AuthService {
       throw new ForbiddenException();
     }
 
-    const tokens = await this.generateToken(user.id, user.username);
+    const tokens = await this.generateToken(user.id, user.username, user.role);
     await this.updateRefreshToken(user.id, tokens.refreshToken);
     return tokens;
   }

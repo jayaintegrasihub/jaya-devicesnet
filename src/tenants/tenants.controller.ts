@@ -10,6 +10,8 @@ import {
   Param,
   Patch,
   Post,
+  Query,
+  Request,
   UseGuards,
   UseInterceptors,
   UsePipes,
@@ -20,6 +22,9 @@ import { TenantsEntity } from './entity/tenants.entity';
 import { CreateTenantDto } from './dto/create-tenants.dto';
 import { UpdateTenantDto } from './dto/update-tenants.dto';
 import { RequestLogs } from 'src/request-logs/request-logs.decorator';
+import { RoleGuard } from 'src/role/guards/role.guard';
+import { Role } from 'src/enums/role.enum';
+import { Roles } from 'src/role/decorator/roles.decorator';
 
 @Controller('tenants')
 @UsePipes(ZodValidationPipe)
@@ -31,8 +36,8 @@ export class TenantsController {
   @RequestLogs('getAllTenants')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
-  async findAll() {
-    const tenants = await this.tenantsService.findAll({});
+  async findAll(@Query() params: any, @Request() req: any) {
+    const tenants = await this.tenantsService.findAll(params, req);
     const tenantsEntity = tenants.map((tenant) => new TenantsEntity(tenant));
 
     return {
@@ -44,7 +49,8 @@ export class TenantsController {
   @Get('/:id')
   @RequestLogs('getTenant')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async findOne(@Param('id') id: string) {
     const tenant = await this.tenantsService.findOne({ id });
     const tenantEntity = new TenantsEntity(tenant);
@@ -57,7 +63,8 @@ export class TenantsController {
   @Post('/')
   @RequestLogs('postTenant')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async create(@Body() data: CreateTenantDto) {
     const tenant = await this.tenantsService.create(data);
     const tenantEntity = new TenantsEntity(tenant);
@@ -70,7 +77,8 @@ export class TenantsController {
   @Patch('/:id')
   @RequestLogs('patchTenant')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async update(@Param('id') id: string, @Body() data: UpdateTenantDto) {
     const tenant = await this.tenantsService.update({ where: { id }, data });
     const tenantEntity = new TenantsEntity(tenant);
@@ -83,7 +91,8 @@ export class TenantsController {
   @Delete('/:id')
   @RequestLogs('deleteTenant')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessTokenGuard)
+  @Roles(Role.ADMIN)
+  @UseGuards(AccessTokenGuard, RoleGuard)
   async delete(@Param('id') id: string) {
     await this.tenantsService.delete({ id });
     return {

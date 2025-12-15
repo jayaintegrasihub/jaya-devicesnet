@@ -6,6 +6,8 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { InfluxdbClientModule } from 'src/influxdb/influxdb.module';
 import { RedisModule } from 'src/redis/redis.module';
 import { ApiKeysModule } from 'src/api-keys/api-keys.module';
+import { AccessControlService } from 'src/shared/access-control.service';
+import { RoleGuard } from 'src/role/guards/role.guard';
 
 @Module({
   imports: [
@@ -16,7 +18,7 @@ import { ApiKeysModule } from 'src/api-keys/api-keys.module';
     ApiKeysModule,
   ],
   controllers: [NodesController],
-  providers: [NodesService],
+  providers: [NodesService, AccessControlService, RoleGuard],
   exports: [NodesService],
 })
 export class NodesModule {}
