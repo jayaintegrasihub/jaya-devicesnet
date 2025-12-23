@@ -10,6 +10,9 @@ export class UsersService {
   find(usersWhereUniqueInputs: Prisma.UsersWhereUniqueInput): Promise<Users> {
     return this.prisma.users.findUniqueOrThrow({
       where: usersWhereUniqueInputs,
+      include: {
+        tenant: true,
+      },
     });
   }
 
@@ -44,7 +47,14 @@ export class UsersService {
     where?: Prisma.UsersWhereInput;
     orderBy?: Prisma.UsersOrderByWithRelationInput;
   }): Promise<Users[]> {
-    return this.prisma.users.findMany({ ...params });
+    return this.prisma.users.findMany(
+      { 
+        ...params, 
+        include: {
+          tenant: true,
+        },
+      }
+    );
   }
 
   async create(data: Prisma.UsersCreateInput): Promise<Users> {
