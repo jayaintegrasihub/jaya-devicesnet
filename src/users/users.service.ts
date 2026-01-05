@@ -3,17 +3,31 @@ import { Prisma, Users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 
+export interface UsersWithTenant extends Users {
+  tenant: Array<{ tenant: any }>;
+};
+
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  find(usersWhereUniqueInputs: Prisma.UsersWhereUniqueInput): Promise<Users> {
-    return this.prisma.users.findUniqueOrThrow({
+  async find(
+    usersWhereUniqueInputs: Prisma.UsersWhereUniqueInput,
+  ): Promise<UsersWithTenant> {
+    const user = await this.prisma.users.findUniqueOrThrow({
       where: usersWhereUniqueInputs,
       include: {
-        tenant: true,
+        tenant: {
+          select: {
+            tenant: true,
+          },
+        },
       },
     });
+    return {
+      ...user,
+      tenant: user.tenant.map((t: any) => t.tenant),
+    };
   }
 
   public update(params: {
@@ -47,13 +61,20 @@ export class UsersService {
     where?: Prisma.UsersWhereInput;
     orderBy?: Prisma.UsersOrderByWithRelationInput;
   }): Promise<Users[]> {
-    return this.prisma.users.findMany(
-      { 
-        ...params, 
-        include: {
-          tenant: true,
+    return this.prisma.users.findMany({
+      ...params,
+      include: {
+      tenant: {
+        select: {
+        tenant: true,
         },
-      }
+      },
+      },
+    }).then(users =>
+      users.map(user => ({
+      ...user,
+      tenant: user.tenant.map((t: any) => t.tenant),
+      }))
     );
   }
 
