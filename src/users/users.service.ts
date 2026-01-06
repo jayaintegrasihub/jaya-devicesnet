@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 
 export interface UsersWithTenant extends Users {
   tenant: Array<{ tenant: any }>;
-};
+}
 
 @Injectable()
 export class UsersService {
@@ -32,11 +32,22 @@ export class UsersService {
 
   public update(params: {
     where: Prisma.UsersWhereUniqueInput;
-    data: Prisma.UsersUpdateInput;
+    data: Prisma.UsersUpdateInput & { confirmPassword?: string };
   }): Promise<Users> {
     const { where, data } = params;
 
-    const updatedData: Prisma.UsersUpdateInput = { ...data };
+    if (
+      data.password &&
+      data.confirmPassword &&
+      data.password !== data.confirmPassword
+    ) {
+      throw new ForbiddenException('Passwords do not match.');
+    }
+
+    const { confirmPassword, ...dataWithoutConfirmPassword } = data;
+    const updatedData: Prisma.UsersUpdateInput = {
+      ...dataWithoutConfirmPassword,
+    };
     if (data.password) {
       updatedData['password'] = bcrypt.hashSync(data.password as string, 10);
     }
@@ -78,7 +89,17 @@ export class UsersService {
     );
   }
 
-  async create(data: Prisma.UsersCreateInput): Promise<Users> {
+  async create(
+    data: Prisma.UsersCreateInput & { confirmPassword?: string },
+  ): Promise<Users> {
+    if (
+      data.password &&
+      data.confirmPassword &&
+      data.password !== data.confirmPassword
+    ) {
+      throw new ForbiddenException('Passwords do not match.');
+    }
+
     const hashedPassword = bcrypt.hashSync(data.password, 10);
 
     const userData: Prisma.UsersCreateInput = {
