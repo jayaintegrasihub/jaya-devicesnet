@@ -3,8 +3,8 @@ import z from 'zod';
 
 const UpdateUsersZ = z
   .object({
-    password: z.string().length(8).optional(),
-    confirmPassword: z.string().length(8).optional(),
+    password: z.string().min(8).optional(),
+    confirmPassword: z.string().min(8).optional(),
     tenantIds: z.array(z.string()).optional(),
   })
   .refine((data) => !data.password || !!data.confirmPassword, {
