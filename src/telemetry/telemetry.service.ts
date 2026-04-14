@@ -13,6 +13,7 @@ import { TelemetryMqttPublisher } from 'src/mqtt/telemetry/telemetry.mqtt-publis
 Injectable();
 export class TelemetryService {
   private queryApi: QueryApi;
+  private LAST_HEARD_CONST: number = 60 * 5;
 
   constructor(
     @Inject(INFLUXDB_CLIENT) private influx: InfluxDB,
@@ -92,7 +93,7 @@ export class TelemetryService {
         const point = data;
         const diff =
           (timeNow - new Date(point._time as string).getTime()) / 1000;
-        point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
+        point['status'] = diff < this.LAST_HEARD_CONST ? 'ONLINE' : 'OFFLINE';
         point['alias'] = device.alias;
         return point;
       },
@@ -217,7 +218,7 @@ export class TelemetryService {
           if (point === undefined) return;
           const diff =
             (timeNow - new Date(point._time as string).getTime()) / 1000;
-          point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
+          point['status'] = diff < this.LAST_HEARD_CONST ? 'ONLINE' : 'OFFLINE';
           point['alias'] = device.alias;
           point['id'] = device.id;
           return point;
@@ -443,7 +444,7 @@ export class TelemetryService {
         const point = data;
         const diff =
           (timeNow - new Date(point._time as string).getTime()) / 1000;
-        point['status'] = diff < 60 ? 'ONLINE' : 'OFFLINE';
+        point['status'] = diff < this.LAST_HEARD_CONST ? 'ONLINE' : 'OFFLINE';
         point['alias'] = device.alias;
         return point;
       },
@@ -743,7 +744,7 @@ export class TelemetryService {
             (timeNow - new Date(rest._time as string).getTime()) / 1000;
           return {
             ...rest,
-            status: diff < 60 ? 'ONLINE' : 'OFFLINE',
+            status: diff < this.LAST_HEARD_CONST ? 'ONLINE' : 'OFFLINE',
             alias: device.alias,
             id: device.id,
             telemetry: device.telemetry,
