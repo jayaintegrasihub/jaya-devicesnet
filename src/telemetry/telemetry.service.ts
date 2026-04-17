@@ -583,23 +583,20 @@ export class TelemetryService {
     const flux = `
     import "timezone"
 
-    a = from(bucket: "${device.tenant?.name}")
+    base = from(bucket: "${device.tenant?.name}")
     |> range(start: ${startTime}, stop: ${endTime})
     |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
     |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
     |> filter(fn: (r) => r["_field"] == "uptime")
+    |> group(columns: ["device"])
     |> window(every: 1d, location : timezone.location(name: "${timezone}"))
+    a = base
     |> difference()
     |> filter(fn: (r) => r["_value"] > 0)
     |> sum()
     |> map(fn: (r) => ({ r with _field: "duration" }))
 
-    b = from(bucket: "${device.tenant?.name}")
-    |> range(start: ${startTime}, stop: ${endTime})
-    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
-    |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
-    |> filter(fn: (r) => r["_field"] == "uptime")
-    |> window(every: 1d, location : timezone.location(name: "${timezone}"))
+    b = base
     |> count()
     |> map(fn: (r) => ({ r with _field: "count" }))
 
