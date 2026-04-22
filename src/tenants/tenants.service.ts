@@ -71,20 +71,80 @@ export class TenantsService {
   }
 
   async create(data: Prisma.TenantsCreateInput) {
-    const tenant = await this.prisma.$transaction(async (tx) => {
-      const bucket = await this.influxApi.buckets.postBuckets({
+    let bucket: { id?: string; name?: string } | null = null;
+    let task: { id?: string } | null = null;
+
+    try {
+      bucket = await this.influxApi.buckets.postBuckets({
         body: {
           description: data.description ?? 'none',
           name: data.name,
-          orgID: this.configService.getOrThrow('INFLUXDB_ORG_ID'),
+          orgID: this.configService.get<string>('INFLUXDB_ORG_ID')!,
         },
       });
-      const tenant = await tx.tenants.create({
+
+      task = await this.influxApi.tasks.postTasks({
+        body: {
+          orgID: this.configService.get<string>('INFLUXDB_ORG_ID')!,
+          flux: [
+            'import "timezone"',
+            '',
+            `option task = {name: "${data.name}_completeness", cron: "0 0 * * *", offset: 17h}`,
+            '',
+            `base = from(bucket: "${bucket.name}")`,
+            '  |> range(start: -1d)',
+            '  |> filter(fn: (r) => r["_measurement"] == "deviceshealth" and r["_field"] == "uptime")',
+            '  |> group(columns: ["device"])',
+            '  |> sort(columns: ["_time"], desc: false)',
+            '  |> window(every: 1d, location: timezone.location(name: "Asia/Jakarta"))',
+            '',
+            'b = base',
+            '  |> count()',
+            '  |> map(fn: (r) => ({r with _field: "count", _time: r._stop}))',
+            '',
+            'a = base',
+            '  |> difference()',
+            '  |> filter(fn: (r) => r._value > 0)',
+            '  |> sum()',
+            '  |> map(fn: (r) => ({r with _field: "duration", _time: r._stop}))',
+            '',
+            'union(tables: [a, b])',
+            '  |> map(fn: (r) => ({r with _measurement: "completeness_daily", _time: r._time}))',
+            `  |> to(bucket: "${bucket.name}")`,
+          ].join('\n'),
+        },
+      });
+
+      const tenant = await this.prisma.tenants.create({
         data: { ...data, bucketId: bucket.id! },
       });
+
       return tenant;
-    });
-    return tenant;
+    } catch (error) {
+      if (task?.id) {
+        try {
+          await this.influxApi.tasks.deleteTasksID({ taskID: task.id });
+        } catch (rollbackError) {
+          this.logger.error(
+            `Failed to rollback task ${task.id}:`,
+            rollbackError,
+          );
+        }
+      }
+
+      if (bucket?.id) {
+        try {
+          await this.influxApi.buckets.deleteBucketsID({ bucketID: bucket.id });
+        } catch (rollbackError) {
+          this.logger.error(
+            `Failed to rollback bucket ${bucket.id}:`,
+            rollbackError,
+          );
+        }
+      }
+
+      throw error;
+    }
   }
 
   update(params: {

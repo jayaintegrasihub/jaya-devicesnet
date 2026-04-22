@@ -512,27 +512,14 @@ export class TelemetryService {
       throw new NotFoundException('Device not found');
 
     const flux = `
-    import "timezone"
-
-    base = from(bucket: "${tenant.name}")
-        |> range(start: ${startTime}, stop: ${endTime})
-        |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
-        |> filter(fn: (r) => r["device"] =~ /${filterDevices}/)
-        |> filter(fn: (r) => r["_field"] == "uptime")
-        |> group(columns: ["device"])
-        |> window(every: 1d, location : timezone.location(name: "${timezone}"))
-    b = base
-        |> count()
-        |> map(fn: (r) => ({ r with _field: "count" }))
-    a = base
-        |> difference()
-        |> filter(fn: (r) => r["_value"] > 0)
-        |> sum()
-        |> map(fn: (r) => ({ r with _field: "duration" }))
-
-    union(tables: [a, b])
-        |> pivot(rowKey: ["_start", "device"], columnKey: ["_field"], valueColumn: "_value")
-        |> keep(columns: ["_start", "_stop", "count", "device", "duration"])
+    from(bucket: "${tenant.name}")
+      |> range(start: ${startTime}, stop: ${endTime})
+      |> filter(fn: (r) => r["_measurement"] == "completeness_daily")
+      |> filter(fn: (r) => r["device"] =~ /${filterDevices}/)
+      |> filter(fn: (r) => r["_field"] == "count" or r["_field"] == "duration")
+      |> pivot(rowKey: ["_time", "device"], columnKey: ["_field"], valueColumn: "_value")
+      |> keep(columns: ["_time", "device", "count", "duration"])
+      |> rename(columns: {_time: "_start"})
     `;
 
     const result = await this.queryApi.collectRows(flux);
@@ -581,31 +568,14 @@ export class TelemetryService {
       throw new NotFoundException('Device not found');
     }
     const flux = `
-    import "timezone"
-
-    a = from(bucket: "${device.tenant?.name}")
-    |> range(start: ${startTime}, stop: ${endTime})
-    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
-    |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
-    |> filter(fn: (r) => r["_field"] == "uptime")
-    |> window(every: 1d, location : timezone.location(name: "${timezone}"))
-    |> difference()
-    |> filter(fn: (r) => r["_value"] > 0)
-    |> sum()
-    |> map(fn: (r) => ({ r with _field: "duration" }))
-
-    b = from(bucket: "${device.tenant?.name}")
-    |> range(start: ${startTime}, stop: ${endTime})
-    |> filter(fn: (r) => r["_measurement"] == "deviceshealth")
-    |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
-    |> filter(fn: (r) => r["_field"] == "uptime")
-    |> window(every: 1d, location : timezone.location(name: "${timezone}"))
-    |> count()
-    |> map(fn: (r) => ({ r with _field: "count" }))
-
-    union(tables: [a, b])
-    |> pivot(rowKey: ["_start"], columnKey: ["_field"], valueColumn: "_value")
-    |> keep(columns: ["_start", "_stop", "count", "device", "duration"])
+    from(bucket: "${device.tenant?.name}")
+      |> range(start: ${startTime}, stop: ${endTime})
+      |> filter(fn: (r) => r["_measurement"] == "completeness_daily")
+      |> filter(fn: (r) => r["device"] == "${device.serialNumber}")
+      |> filter(fn: (r) => r["_field"] == "count" or r["_field"] == "duration")
+      |> pivot(rowKey: ["_time", "device"], columnKey: ["_field"], valueColumn: "_value")
+      |> keep(columns: ["_time", "device", "count", "duration"])
+      |> rename(columns: {_time: "_start"})
     `;
 
     const result = await this.queryApi.collectRows(flux);
