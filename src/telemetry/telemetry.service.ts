@@ -149,6 +149,8 @@ export class TelemetryService {
     |> filter(fn: (r) => r["device"] == "${serialNumber}")
     |> filter(fn: (r) => ${filterFields})
     ${aggreateFlux}
+    |> group()
+    |> sort(columns: ["_time"], desc: false)
     |> drop(columns: ["_start", "_stop"])`;
 
     const resultQuery = await this.queryApi.collectRows(fluxQuery);
