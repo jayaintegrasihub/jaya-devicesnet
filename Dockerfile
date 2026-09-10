@@ -2,53 +2,92 @@
 # BUILD FOR LOCAL DEVELOPMENT
 ###################
 
-FROM node:22-alpine As development
+FROM node:22-alpine AS development
 
-# Create app directory
 WORKDIR /usr/src/app
 
 # https://github.com/prisma/prisma/discussions/19341
 RUN apk add --no-cache openssl
-# Copy application dependency manifests to the container image.
-# A wildcard is used to ensure copying both package.json AND package-lock.json (when available).
-# Copying this first prevents re-running npm install on every code change.
+
+# Copying manifests first keeps `npm ci` cached across source-only changes.
 COPY --chown=node:node package*.json ./
 
-# Install app dependencies using the `npm ci` command instead of `npm install`
 RUN npm ci
 
-# Bundle app source
 COPY --chown=node:node . .
 
-# Use the node user from the image (instead of the root user)
+RUN npx prisma generate
+
 USER node
+
+###################
+# MIGRATOR
+###################
+# One-shot container for `prisma migrate deploy` and `prisma db seed`.
+#
+# Built from scratch rather than branching off `development`: that stage carries
+# Nest, exceljs, webpack and the lint toolchain, which this image has no use for
+# and which matter now that it is pulled over the network on every deploy.
+# Installing only what seed.ts actually imports takes it from ~990MB to ~420MB.
+#
+# Versions are pinned to package-lock.json rather than the ranges in
+# package.json -- the lockfile resolves prisma/@prisma/client to 5.15.0, not the
+# 5.7.1 the range implies, and the CLI must match the client.
+
+FROM node:22-alpine AS migrator
+
+WORKDIR /usr/src/app
+
+RUN apk add --no-cache openssl
+
+# A minimal manifest instead of the app's: `prisma db seed` reads the seed
+# command out of package.json, but installing from the real one would drag in
+# the entire runtime dependency tree.
+RUN printf '%s' \
+      '{"name":"jaya-migrator","private":true,' \
+      '"prisma":{"seed":"ts-node prisma/seed.ts"}}' > package.json \
+ && npm i --no-save --no-audit --no-fund \
+      @prisma/client@5.15.0 \
+      bcrypt@5.1.1 \
+      prisma@5.15.0 \
+      ts-node@10.9.2 \
+      typescript@5.4.5 \
+ && npm cache clean --force
+
+COPY --chown=node:node tsconfig.json ./
+COPY --chown=node:node prisma ./prisma
+
+RUN npx prisma generate
+
+USER node
+
+CMD ["npx", "prisma", "migrate", "deploy"]
 
 ###################
 # BUILD FOR PRODUCTION
 ###################
 
-FROM node:22-alpine As build
+FROM node:22-alpine AS build
 
 WORKDIR /usr/src/app
 
-# https://github.com/prisma/prisma/discussions/19341
 RUN apk add --no-cache openssl
 
 COPY --chown=node:node package*.json ./
 
-# In order to run `npm run build` we need access to the Nest CLI which is a dev dependency. In the previous development stage we ran `npm ci` which installed all dependencies, so we can copy over the node_modules directory from the development image
+# The Nest CLI is a devDependency, so reuse the fully-installed node_modules
+# from the development stage instead of installing twice.
 COPY --chown=node:node --from=development /usr/src/app/node_modules ./node_modules
 
 COPY --chown=node:node . .
 
-# Run the build command which creates the production bundle
 RUN npx prisma generate
 RUN npm run build
 
-# Set NODE_ENV environment variable
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
-# Running `npm ci` removes the existing node_modules directory and passing in --only=production ensures that only the production dependencies are installed. This ensures that the node_modules directory is as optimized as possible
+# Drop devDependencies. The generated Prisma client survives because
+# @prisma/client is a production dependency with a postinstall hook.
 RUN npm ci --only=production && npm cache clean --force
 
 USER node
@@ -57,17 +96,28 @@ USER node
 # PRODUCTION
 ###################
 
-FROM node:22-alpine As production
+FROM node:22-alpine AS production
 
-# https://github.com/prisma/prisma/discussions/19341
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl wget
 
-# Copy the bundled code from the build stage to the production image
+# The upstream image ships a `node` user; run as it rather than root. Note that
+# a `USER` in an earlier stage does not carry across a FROM, so this must be
+# restated here.
+WORKDIR /usr/src/app
+
 COPY --chown=node:node --from=build /usr/src/app/node_modules ./node_modules
 COPY --chown=node:node --from=build /usr/src/app/dist ./dist
 COPY --chown=node:node --from=build /usr/src/app/prisma ./prisma
 
+ENV NODE_ENV=production
+
+USER node
+
 EXPOSE 3000
 
-# Start the server using the production build
-CMD [ "node", "dist/main.js" ]
+# `GET /` is the only unauthenticated route -- `/health` sits behind
+# ApiKeysGuard and hits Postgres, so it is useless as a liveness probe.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/ || exit 1
+
+CMD ["node", "dist/main.js"]

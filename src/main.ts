@@ -13,6 +13,9 @@ async function bootstrap() {
   );
   app.enableCors();
 
-  await app.listen(3000);
+  // Close Prisma/MQTT/Redis connections on SIGTERM instead of dropping them.
+  app.enableShutdownHooks();
+
+  await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
