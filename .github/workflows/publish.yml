@@ -1,0 +1,91 @@
+# Builds the API and migrator images in CI and publishes them to GHCR, so the
+# deployment host only ever has to pull. Building on the VPS is not viable:
+# `npm ci` here pulls ~1GB of node_modules and compiles bcrypt natively.
+#
+# Runs alongside the existing Docker Hub workflow rather than replacing it.
+
+name: Publish images to GHCR
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  # Build (but do not publish) on PRs, so a branch is proven to build in CI
+  # before it is merged. workflow_dispatch cannot cover this: it only offers
+  # workflows that already exist on the default branch.
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Both images come from the same Dockerfile, at different targets.
+          - image: jaya-devicesnet-api
+            target: production
+          - image: jaya-devicesnet-migrate
+            target: migrator
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Built-in token; no registry secret needs configuring.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Immutable, and the handle used to roll back.
+            type=sha,format=long,prefix=sha-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          # The deployment host is x86_64; building arm64 as well would double
+          # CI time for an image nothing pulls.
+          platforms: linux/amd64
+          # Nothing is published from a pull request.
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: Assert no dotenv file was baked in
+        if: github.event_name != 'pull_request'
+        # These packages are public, so a leaked .env would be world-readable.
+        # .dockerignore excludes them; this proves it rather than trusting it.
+        run: |
+          image="ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:sha-${{ github.sha }}"
+          docker pull -q "$image"
+          if docker run --rm --entrypoint sh "$image" -c \
+               'ls -a / /usr/src/app 2>/dev/null | grep -qE "^\.env"'; then
+            echo "::error::a .env file is present in $image"
+            exit 1
+          fi
+          echo "no dotenv file in $image"

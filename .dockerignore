@@ -1,4 +1,11 @@
+.git
+.github
+.env
+.env.*
 node_modules
 dist
+coverage
+test
 redis
-.github
+*.md
+*.pdf
