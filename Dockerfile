@@ -2,7 +2,7 @@
 # BUILD FOR LOCAL DEVELOPMENT
 ###################
 
-FROM node:22-alpine AS development
+FROM node:22.23.4-alpine AS development
 
 WORKDIR /usr/src/app
 
@@ -34,7 +34,7 @@ USER node
 # package.json -- the lockfile resolves prisma/@prisma/client to 5.15.0, not the
 # 5.7.1 the range implies, and the CLI must match the client.
 
-FROM node:22-alpine AS migrator
+FROM node:22.23.4-alpine AS migrator
 
 WORKDIR /usr/src/app
 
@@ -67,7 +67,7 @@ CMD ["npx", "prisma", "migrate", "deploy"]
 # BUILD FOR PRODUCTION
 ###################
 
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 
 WORKDIR /usr/src/app
 
@@ -96,7 +96,7 @@ USER node
 # PRODUCTION
 ###################
 
-FROM node:22-alpine AS production
+FROM node:22.23.4-alpine AS production
 
 RUN apk add --no-cache openssl wget
 
